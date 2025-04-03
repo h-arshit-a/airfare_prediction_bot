@@ -77,36 +77,39 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFlightSearch }) =>
             );
           }
           
+          // Parse the flights
+          const flights = flightData.map(flightStr => {
+            // Extract flight details (ensure tags match chatbotService)
+            const airline = flightStr.match(/<airline>(.*?)<\/airline>/)?.[1] || 'Unknown Airline';
+            const flightNumber = flightStr.match(/<flight_number>(.*?)<\/flight_number>/)?.[1] || 'Unknown';
+            const departureTime = flightStr.match(/<departure_time>(.*?)<\/departure_time>/)?.[1] || 'TBD';
+            const arrivalTime = flightStr.match(/<arrival_time>(.*?)<\/arrival_time>/)?.[1] || 'TBD';
+            const departureIso = flightStr.match(/<departure_iso>(.*?)<\/departure_iso>/)?.[1] || '';
+            const arrivalIso = flightStr.match(/<arrival_iso>(.*?)<\/arrival_iso>/)?.[1] || '';
+            const duration = flightStr.match(/<duration>(.*?)<\/duration>/)?.[1] || 'Unknown';
+            const price = flightStr.match(/<price>(.*?)<\/price>/)?.[1] || 'Unknown';
+            
+            return {
+              airline,
+              flightNumber,
+              departureTime,
+              arrivalTime,
+              departureIso,
+              arrivalIso,
+              duration,
+              price
+            };
+          });
+          
+          // Render the flights
           return (
             <>
               <p className="mb-4">{beforeResults.trim()}</p>
-              
-              <div className="space-y-2 my-4">
-                {flightData.map((flightStr, index) => {
-                  // Extract flight details
-                  const airline = flightStr.match(/<airline>(.*?)<\/airline>/)?.[1] || '';
-                  const flightNumber = flightStr.match(/<flight-number>(.*?)<\/flight-number>/)?.[1] || '';
-                  const departure = flightStr.match(/<departure>(.*?)<\/departure>/)?.[1] || '';
-                  const arrival = flightStr.match(/<arrival>(.*?)<\/arrival>/)?.[1] || '';
-                  const duration = flightStr.match(/<duration>(.*?)<\/duration>/)?.[1] || '';
-                  const price = flightStr.match(/<price>(.*?)<\/price>/)?.[1] || '';
-                  
-                  console.log(`Flight ${index} details:`, { airline, flightNumber, departure, arrival, duration, price });
-                  
-                  return (
-                    <FlightResultCard 
-                      key={`flight-${index}-${flightNumber}`}
-                      airline={airline}
-                      flightNumber={flightNumber}
-                      departureTime={departure}
-                      arrivalTime={arrival}
-                      duration={duration}
-                      price={price}
-                    />
-                  );
-                })}
+              <div className="space-y-0 my-4">
+                {flights.map((flight, index) => (
+                  <FlightResultCard key={`${message.id}-flight-${index}`} flight={flight} index={index} />
+                ))}
               </div>
-              
               <p className="mt-4">{afterResults.trim()}</p>
             </>
           );

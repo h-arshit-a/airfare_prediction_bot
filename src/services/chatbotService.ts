@@ -22,17 +22,20 @@ const getGeminiResponse = async (userMessage: string, context: string): Promise<
   try {
     const geminiService = GeminiService.getInstance();
     
-    // Create a prompt with context for better responses
+    // Enhanced prompt for more human-like responses
     const prompt = `
-You are a friendly and helpful flight assistant called Flight Friend. Respond to the following user message about flights, travel, or related topics.
-Current context: ${context}
+You are Flight Friend, a warm, friendly, and highly helpful flight assistant. Your goal is to make finding flight information easy and pleasant. 
+Respond conversationally to the user's message about flights, travel, or related topics. Avoid overly robotic language. Use contractions where appropriate (like "I'm", "you're", "it's").
+Keep your responses helpful and relatively concise, but feel free to add a touch of personality.
 
-User message: "${userMessage}"
+Current context of our chat: ${context}
 
-Provide a helpful, conversational response. Keep it concise.
+User's message: "${userMessage}"
+
+Your friendly response:
 `;
 
-    console.log('Sending prompt to Gemini API with context');
+    console.log('Sending enhanced prompt to Gemini API');
     const response = await geminiService.generateContent(prompt);
     
     if (!response || response.trim() === '') {
@@ -41,7 +44,7 @@ Provide a helpful, conversational response. Keep it concise.
     }
     
     console.log('Received valid response from Gemini API');
-    return response;
+    return response.trim(); // Trim whitespace
   } catch (error) {
     console.error('Error getting Gemini response:', error);
     return null;
@@ -56,573 +59,453 @@ export const generateChatbotResponse = async (
 ): Promise<string> => {
   console.log('Generating chatbot response for:', userMessage || 'flight results');
   
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500)); // Reduced delay
+  // Simulate API delay (can be removed in production)
+  await new Promise(resolve => setTimeout(resolve, 300)); // Slightly reduced delay
 
   // Function to format price to INR
   const formatPrice = (price: number) => `₹${price.toLocaleString('en-IN')}`;
 
-  // Update conversation context
-  let currentContext = '';
+  // --- Build Conversation Context ---
+  let currentContext = 'User initiated interaction.';
+  if (conversationContext.lastTopic) {
+    currentContext += ` Last topic discussed: ${conversationContext.lastTopic}.`;
+  }
   if (searchParams) {
-    currentContext += `User was searching for flights from ${searchParams.source} to ${searchParams.destination}. `;
+    currentContext += ` User searched for flights from ${searchParams.source} to ${searchParams.destination} on ${searchParams.date.toDateString()}.`;
     conversationContext.mentionedCities.add(searchParams.source);
     conversationContext.mentionedCities.add(searchParams.destination);
     conversationContext.userPreferences.travelDate = searchParams.date;
   }
   
-  // Detect cities in message for context
-  const cities = ['delhi', 'mumbai', 'bangalore', 'kolkata', 'chennai', 'hyderabad', 'pune', 'ahmedabad', 'jaipur'];
-  cities.forEach(city => {
+  // Detect cities and airlines mentioned
+  const commonCities = ['delhi', 'mumbai', 'bangalore', 'kolkata', 'chennai', 'hyderabad', 'pune', 'ahmedabad', 'jaipur', 'ranchi', 'patna', 'lucknow', 'goa', 'kochi', 'guwahati', 'bhubaneswar'];
+  commonCities.forEach(city => {
     if (userMessage.toLowerCase().includes(city)) {
       conversationContext.mentionedCities.add(city);
     }
   });
-
-  // Detect airlines in message for context
-  const airlines = ['indigo', 'air india', 'vistara', 'spicejet', 'goair', 'airasia'];
-  airlines.forEach(airline => {
+  const commonAirlines = ['indigo', 'air india', 'vistara', 'spicejet', 'goair', 'airasia'];
+  commonAirlines.forEach(airline => {
     if (userMessage.toLowerCase().includes(airline)) {
       conversationContext.mentionedAirlines.add(airline);
-      currentContext += `User mentioned ${airline}. `;
+      currentContext += ` User mentioned ${airline}.`;
     }
   });
 
-  // Detect price preferences
-  if (userMessage.toLowerCase().includes('cheap') || userMessage.toLowerCase().includes('budget') || userMessage.toLowerCase().includes('low cost')) {
+  if (userMessage.toLowerCase().includes('cheap') || userMessage.toLowerCase().includes('budget')) {
     conversationContext.userPreferences.pricePreference = 'budget';
-    currentContext += 'User is looking for budget options. ';
-  } else if (userMessage.toLowerCase().includes('premium') || userMessage.toLowerCase().includes('business') || userMessage.toLowerCase().includes('luxury')) {
+    currentContext += ' User seems budget-conscious.';
+  } else if (userMessage.toLowerCase().includes('premium') || userMessage.toLowerCase().includes('business')) {
     conversationContext.userPreferences.pricePreference = 'premium';
-    currentContext += 'User is interested in premium options. ';
+    currentContext += ' User might prefer premium options.';
   }
-
-  currentContext += `Previously mentioned cities: ${Array.from(conversationContext.mentionedCities).join(', ')}. `;
   
-  // Initial greeting - use varied greetings
-  if (userMessage.toLowerCase().includes('hello') || userMessage.toLowerCase().includes('hi')) {
-    console.log('Detected greeting, generating response');
-    
-    // Try to get a response from Gemini first
+  currentContext += ` Known mentioned cities: ${Array.from(conversationContext.mentionedCities).join(', ') || 'None'}.`;
+  currentContext += ` Known mentioned airlines: ${Array.from(conversationContext.mentionedAirlines).join(', ') || 'None'}.`;
+
+  // --- Handle Greetings ---
+  if (userMessage.toLowerCase().match(/^(hi|hello|hey|greetings)\b/)) {
+    console.log('Detected greeting, attempting Gemini response first.');
     const geminiResponse = await getGeminiResponse(userMessage, currentContext);
-    if (geminiResponse) {
-      console.log('Using Gemini response for greeting');
-      return geminiResponse;
-    }
+    if (geminiResponse) return geminiResponse;
     
-    console.log('Falling back to hardcoded greeting response');
-    // Fallback responses if Gemini fails
+    console.log('Falling back to friendly hardcoded greeting');
     const greetings = [
-      "Hello! I'm Flight Friend, your AI travel assistant. How can I help you find the perfect flight today?",
-      "Hi there! I'm your personal flight assistant. Looking for travel options, fare details, or flight information?",
-      "Greetings! I'm Flight Friend, ready to assist with your travel plans. Where are you thinking of flying to?",
-      "Welcome! I'm your AI flight companion. I can help with routes, prices, and travel recommendations. What's your destination?"
+      "Hey there! 👋 I'm Flight Friend. Ready to find some amazing flight deals for you?",
+      "Hello! Your friendly flight assistant, Flight Friend, reporting for duty! How can I help with your travel plans today?",
+      "Hi! I'm Flight Friend. Need help searching for flights or need some travel tips? Just ask!",
+      "Welcome! I'm Flight Friend, here to make your flight planning a breeze. What trip are you dreaming of?"
     ];
+    conversationContext.lastTopic = 'greeting';
     return greetings[Math.floor(Math.random() * greetings.length)];
   }
   
-  // Handle flight search queries with improved pattern matching
-  if (userMessage.toLowerCase().includes('find') || 
-      userMessage.toLowerCase().includes('search') || 
-      userMessage.toLowerCase().includes('flight') || 
-      userMessage.toLowerCase().includes('from') ||
-      userMessage.toLowerCase().includes('show') ||
-      userMessage.toLowerCase().includes('book') ||
-      userMessage.toLowerCase().includes('travel') ||
-      userMessage.toLowerCase().includes('trip')) {
-        
-    console.log('Detected flight search query:', userMessage);
+  // --- Handle Flight Search Queries ---
+  const searchKeywords = ['find', 'search', 'look for', 'flight', 'from', 'show me', 'book', 'travel', 'trip', 'ticket'];
+  if (searchKeywords.some(keyword => userMessage.toLowerCase().includes(keyword))) {
+    console.log('Potential flight search query detected:', userMessage);
     
-    // Special case for "ranchi to kolkata"
-    if (userMessage.toLowerCase().includes('ranchi') && userMessage.toLowerCase().includes('kolkata')) {
-      console.log('Special case detected: Ranchi to Kolkata');
-      // Default to tomorrow if no date is found
-      let flightDate = new Date();
-      flightDate.setDate(flightDate.getDate() + 1);
-      
-      // Try to detect date in the message
-      const dateRegex = /(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}/i;
-      const dateMatch = userMessage.match(dateRegex);
-      
-      if (dateMatch) {
-        console.log('Date found in special case:', dateMatch[0]);
-        try {
-          const parsedDate = new Date(dateMatch[0] + ", " + new Date().getFullYear());
-          if (!isNaN(parsedDate.getTime())) {
-            flightDate = parsedDate;
-          }
-        } catch (e) {
-          console.error('Error parsing date in special case:', e);
-        }
-      }
-      
-      console.log(`Using hardcoded IXR to CCU with date: ${flightDate.toDateString()}`);
-      
-      return `I'll find you flights from Ranchi (IXR) to Kolkata (CCU) on ${flightDate.toLocaleDateString()}. Hang tight!
+    // Improved pattern matching (keeping existing logic but refining extraction)
+    let source: string | undefined, destination: string | undefined;
+    let sourceMatch, destMatch;
 
-<flight-search source="IXR" destination="CCU" date="${flightDate.toISOString()}" />`;
-    }
-    
-    // Try to extract locations and date from message
-    let sourceMatch, destMatch, source, destination;
-    
-    // Pattern 1: Standard "from X to Y" format
-    const sourceRegex = /(?:from|origin|source|departing)\s+([A-Za-z\s]+?)(?:\s+to|\s+on|\s+for|\s+at|\s+by|\s+$)/i;
-    const destRegex = /(?:to|destination|arriving at)\s+([A-Za-z\s]+?)(?:\s+on|\s+for|\s+at|\s+by|\s+$|\.)/i;
-    
-    sourceMatch = userMessage.match(sourceRegex);
-    destMatch = userMessage.match(destRegex);
-    
-    console.log('Pattern 1 matches:', sourceMatch ? sourceMatch[1] : 'no match', destMatch ? destMatch[1] : 'no match');
-    
-    // Pattern 2: Direct city names format like "mumbai to delhi" without "from"
-    if (!sourceMatch || !destMatch) {
-      console.log('Trying alternate pattern: Direct city-to-city format');
+    // Pattern 1: Standard "from X to Y"
+    const fromToRegex = /(?:from|departing|leaving)\s+([A-Za-z\s]+?)\s+(?:to|towards|for)\s+([A-Za-z\s]+?)(?:$|\s+on|\s+around|\s+near)/i;
+    const fromToMatch = userMessage.match(fromToRegex);
+    if (fromToMatch) {
+      source = fromToMatch[1].trim();
+      destination = fromToMatch[2].trim();
+      console.log(`Found 'from X to Y' pattern: ${source} -> ${destination}`);
+      sourceMatch = destMatch = true; 
+    } else {
+      // Pattern 2: Direct "X to Y" 
       const directCitiesRegex = /\b([A-Za-z\s]{2,})\s+(?:to|and|->|—|–|-)\s+([A-Za-z\s]{2,})\b/i;
       const directMatch = userMessage.match(directCitiesRegex);
-      
       if (directMatch) {
         source = directMatch[1].trim();
         destination = directMatch[2].trim();
-        console.log(`Found direct format: ${source} to ${destination}`);
-        sourceMatch = destMatch = true; // Set these to true to pass the check
+        console.log(`Found direct 'X to Y' pattern: ${source} -> ${destination}`);
+        sourceMatch = destMatch = true;
       } else {
-        // Try an even simpler pattern - just extract two cities directly
-        console.log('Trying direct city extraction');
-        
-        // Define common cities that might be in the query
-        const commonCities = [
-          'ranchi', 'kolkata', 'mumbai', 'delhi', 'bangalore', 'chennai', 
-          'hyderabad', 'pune', 'patna', 'lucknow', 'jaipur', 'goa', 'ahmedabad',
-          'bhubaneswar', 'varanasi', 'nagpur', 'indore', 'kochi', 'guwahati'
-        ];
-        
-        // Extract all cities from the message
-        let foundCities = [];
-        
-        const normalizedMessage = ' ' + userMessage.toLowerCase() + ' ';
-        
-        for (const city of commonCities) {
-          // Check if the city is in the message with word boundaries
-          if (normalizedMessage.includes(` ${city} `) || 
-              normalizedMessage.includes(` ${city}.`) || 
-              normalizedMessage.includes(` ${city},`) ||
-              normalizedMessage.includes(` ${city}\n`)) {
-            foundCities.push(city);
-            console.log(`Found city in message: ${city}`);
-          }
-        }
-        
-        // If we found at least 2 distinct cities, use them
-        if (foundCities.length >= 2) {
-          source = foundCities[0];
-          destination = foundCities[1];
-          console.log(`Using cities from direct extraction: ${source} to ${destination}`);
-          sourceMatch = destMatch = true;
-        } else {
-          // If the direct extraction didn't work, continue with the regex approach
-          console.log('Direct extraction failed, trying regex pattern');
-          
-          // Create a regex from our city map (continue with existing code)
-          const cityMap: {[key: string]: string} = {
-            'delhi': 'DEL',
-            'mumbai': 'BOM',
-            'bangalore': 'BLR',
-            'bengaluru': 'BLR',
-            'hyderabad': 'HYD',
-            'chennai': 'MAA',
-            'kolkata': 'CCU',
-            'ahmedabad': 'AMD',
-            'pune': 'PNQ',
-            'jaipur': 'JAI',
-            'ranchi': 'IXR',
-            'patna': 'PAT',
-            'lucknow': 'LKO',
-            'guwahati': 'GAU',
-            'bhubaneswar': 'BBI',
-            'goa': 'GOI',
-            'varanasi': 'VNS',
-            'srinagar': 'SXR',
-            'coimbatore': 'CJB',
-            'trivandrum': 'TRV',
-            'indore': 'IDR',
-            'nagpur': 'NAG',
-            'chandigarh': 'IXC',
-            'amritsar': 'ATQ',
-            'raipur': 'RPR',
-            'visakhapatnam': 'VTZ',
-            'vizag': 'VTZ',
-            'bhopal': 'BHO',
-            'udaipur': 'UDR',
-            // Add more cities as needed
+         // Pattern 3: Simple two city extraction (more robust)
+         const cityMap: {[key: string]: string} = {
+            'delhi': 'DEL', 'mumbai': 'BOM', 'bangalore': 'BLR', 'bengaluru': 'BLR', 'hyderabad': 'HYD', 'chennai': 'MAA', 'kolkata': 'CCU', 'ahmedabad': 'AMD', 'pune': 'PNQ', 'jaipur': 'JAI', 'ranchi': 'IXR', 'patna': 'PAT', 'lucknow': 'LKO', 'guwahati': 'GAU', 'bhubaneswar': 'BBI', 'goa': 'GOI', 'varanasi': 'VNS', 'srinagar': 'SXR', 'coimbatore': 'CJB', 'trivandrum': 'TRV', 'thiruvananthapuram': 'TRV', 'indore': 'IDR', 'nagpur': 'NAG', 'chandigarh': 'IXC', 'amritsar': 'ATQ', 'raipur': 'RPR', 'visakhapatnam': 'VTZ', 'vizag': 'VTZ', 'bhopal': 'BHO', 'udaipur': 'UDR', 'kochi': 'COK', 'cochin': 'COK'
           };
-          
-          // Convert city names to regex pattern
-          const cityPattern = Object.keys(cityMap).join('|');
-          const simpleCityRegex = new RegExp(`\\b(${cityPattern})\\b.*?\\b(${cityPattern})\\b`, 'i');
-          
-          const simpleCityMatch = userMessage.toLowerCase().match(simpleCityRegex);
-          if (simpleCityMatch) {
-            // Make sure source and destination are different
-            if (simpleCityMatch[1] !== simpleCityMatch[2]) {
-              source = simpleCityMatch[1].trim();
-              destination = simpleCityMatch[2].trim();
-              console.log(`Found simple city match: ${source} to ${destination}`);
-              sourceMatch = destMatch = true;
-            } else {
-              console.log('Source and destination are the same, ignoring match');
-            }
-          }
-        }
-      }
-    } else {
-      source = sourceMatch[1].trim();
-      destination = destMatch[1].trim();
-    }
-    
-    // Date extraction with enhanced patterns
-    const dateRegex = /(?:on|for|at|date|dated|traveling on)\s+(\d{1,2}(?:st|nd|rd|th)?\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?|[0-1]?\d)(?:\s+\d{4})?|\d{1,2}[-/]\d{1,2}(?:[-/]\d{2,4})?)/i;
-    
-    // Also try to find dates without explicit keywords
-    const simpleDateRegex = /\b(\d{1,2}(?:st|nd|rd|th)?\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)|(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?|\d{1,2}[-/]\d{1,2}(?:[-/]\d{2,4})?)\b/i;
+         const cityPattern = Object.keys(cityMap).join('|');
+         const citiesInMessage = userMessage.toLowerCase().match(new RegExp(`\\b(${cityPattern})\\b`, 'gi'));
 
-    // If we found both cities
-    if ((sourceMatch && destMatch) || (source && destination)) {
-      console.log(`Found cities: ${source} to ${destination}`);
-      
-      // Default to tomorrow if no date specified
-      let flightDate = new Date();
-      flightDate.setDate(flightDate.getDate() + 1);
-      
-      const dateMatch = userMessage.match(dateRegex);
-      if (dateMatch) {
-        console.log('Found date:', dateMatch[1]);
-        // Very simple date parsing, in production you'd want to use a better parser
-        const dateStr = dateMatch[1];
-        try {
-          // Try different date formats
-          let parsedDate;
-          
-          // Try direct parsing first
-          parsedDate = new Date(dateStr);
-          
-          // If that fails, try with different formats
-          if (isNaN(parsedDate.getTime())) {
-            // Check for DD/MM/YYYY or DD-MM-YYYY format
-            const dateFormatMatch = dateStr.match(/(\d{1,2})[-\/](\d{1,2})(?:[-\/](\d{2,4}))?/);
-            if (dateFormatMatch) {
-              const day = parseInt(dateFormatMatch[1]);
-              const month = parseInt(dateFormatMatch[2]) - 1; // JavaScript months are 0-indexed
-              const year = dateFormatMatch[3] ? parseInt(dateFormatMatch[3]) : new Date().getFullYear();
-              // Adjust 2-digit years
-              const fullYear = year < 100 ? (year < 50 ? 2000 + year : 1900 + year) : year;
-              parsedDate = new Date(fullYear, month, day);
-            } else {
-              // Try to handle formats like "3rd Apr"
-              const ordinalDateMatch = dateStr.match(/(\d{1,2})(?:st|nd|rd|th)?\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i);
-              if (ordinalDateMatch) {
-                const day = parseInt(ordinalDateMatch[1]);
-                const monthStr = ordinalDateMatch[2].toLowerCase();
-                const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-                const month = months.indexOf(monthStr.substr(0, 3).toLowerCase());
-                const year = new Date().getFullYear();
-                
-                if (month !== -1) {
-                  parsedDate = new Date(year, month, day);
-                }
-              }
+         if (citiesInMessage && citiesInMessage.length >= 2) {
+            // Use the first two distinct found cities
+            const uniqueCities = [...new Set(citiesInMessage)];
+            if (uniqueCities.length >= 2) {
+               source = uniqueCities[0];
+               destination = uniqueCities[1];
+               console.log(`Found two distinct cities: ${source} -> ${destination}`);
+               sourceMatch = destMatch = true;
             }
-          }
-          
-          if (!isNaN(parsedDate.getTime())) {
-            flightDate = parsedDate;
+         }
+      }
+    }
+
+    // --- Date Extraction --- (Keeping existing logic, potentially enhance later if needed)
+    let flightDate = new Date();
+    flightDate.setDate(flightDate.getDate() + 1); // Default to tomorrow
+
+    // Combined regex for various date formats and keywords
+    const dateKeywords = ['on', 'for', 'around', 'near', 'date', 'dated'];
+    const datePattern = `(?:${dateKeywords.join('|')})\\s+(\\d{1,2}(?:st|nd|rd|th)?\\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?|[0-1]?\\d)(?:\\s+\\d{4})?|\\d{1,2}[-/]\\d{1,2}(?:[-/]\\d{2,4})?|tomorrow|today|next\\s+(?:week|monday|tuesday|wednesday|thursday|friday|saturday|sunday))`;
+    const simpleDatePattern = `\\b(\\d{1,2}(?:st|nd|rd|th)?\\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)|(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\\s+\\d{1,2}(?:st|nd|rd|th)?(?:,?\\s+\\d{4})?|\\d{1,2}[-/]\\d{1,2}(?:[-/]\\d{2,4})?|tomorrow|today|next\\s+(?:week|monday|tuesday|wednesday|thursday|friday|saturday|sunday))\\b`;
+
+    const dateMatch = userMessage.match(new RegExp(datePattern, 'i')) || userMessage.match(new RegExp(simpleDatePattern, 'i'));
+    
+    if (dateMatch) {
+        const dateStr = dateMatch[1].toLowerCase();
+        console.log('Found date string:', dateStr);
+        try {
+          if (dateStr === 'tomorrow') {
+            // Already default
+          } else if (dateStr === 'today') {
+            flightDate = new Date();
+          } else if (dateStr.startsWith('next')) {
+             // Basic handling for "next week/day" - set to 7 days or specific day next week
+             const dayOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+             const targetDay = dayOfWeek.indexOf(dateStr.split(' ')[1]);
+             if (targetDay !== -1) {
+                 const currentDay = flightDate.getDay();
+                 const daysToAdd = (targetDay - currentDay + 7) % 7 + 7; // Add days to get to next instance
+                 flightDate.setDate(flightDate.getDate() + daysToAdd);
+             } else { // next week
+                 flightDate.setDate(flightDate.getDate() + 7);
+             }
+          } else {
+             // Use a robust date parser library in production (e.g., date-fns parse)
+             // Simple parsing for now:
+             let parsedDate = new Date(dateStr.replace(/(st|nd|rd|th)/, '')); // Remove ordinals for basic parsing
+             if (isNaN(parsedDate.getTime())) {
+                 // Try MM/DD or DD/MM formats - ambiguous, assumes MM/DD first
+                 const parts = dateStr.match(/(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?/);
+                 if (parts) {
+                    const year = parts[3] ? (parts[3].length === 2 ? parseInt('20' + parts[3]) : parseInt(parts[3])) : new Date().getFullYear();
+                    parsedDate = new Date(year, parseInt(parts[1]) - 1, parseInt(parts[2])); // Assume MM/DD first
+                    // Rudimentary check if day > 12, might be DD/MM
+                    if (isNaN(parsedDate.getTime()) || parseInt(parts[1]) > 12) {
+                       parsedDate = new Date(year, parseInt(parts[2]) - 1, parseInt(parts[1])); // Try DD/MM
+                    }
+                 }
+             }
+             if (!isNaN(parsedDate.getTime())) {
+                 // Ensure the parsed date isn't in the past relative to today
+                 const today = new Date();
+                 today.setHours(0, 0, 0, 0);
+                 if (parsedDate >= today) {
+                    flightDate = parsedDate;
+                 } else {
+                    // If parsed date is in the past, maybe it's for next year?
+                    parsedDate.setFullYear(parsedDate.getFullYear() + 1);
+                    if (parsedDate >= today) {
+                       flightDate = parsedDate;
+                    } else {
+                       console.warn("Parsed date is still in the past, defaulting to tomorrow.");
+                    }
+                 }
+             }
           }
         } catch (e) {
-          console.error("Failed to parse date", e);
+          console.error("Failed to parse date, defaulting to tomorrow", e);
         }
-      }
+    }
+     console.log(`Using flight date: ${flightDate.toDateString()}`);
+
+    // --- Validate Cities and Generate Search Command ---
+    if (source && destination) {
+      console.log(`Attempting search for: ${source} -> ${destination} on ${flightDate.toDateString()}`);
       
-      // Validate city names and convert to airport codes
-      function validateAndGetCode(cityName: string) {
-        // Handle special cases explicitly
-        const specialCases = {
-          'ranchi': { code: 'IXR', fullName: 'Ranchi' },
-          'kolkata': { code: 'CCU', fullName: 'Kolkata' },
-          'calcutta': { code: 'CCU', fullName: 'Kolkata' },
-          'delhi': { code: 'DEL', fullName: 'Delhi' },
-          'new delhi': { code: 'DEL', fullName: 'Delhi' },
-          'mumbai': { code: 'BOM', fullName: 'Mumbai' },
-          'bombay': { code: 'BOM', fullName: 'Mumbai' },
-          'bangalore': { code: 'BLR', fullName: 'Bangalore' },
-          'bengaluru': { code: 'BLR', fullName: 'Bangalore' },
-          'chennai': { code: 'MAA', fullName: 'Chennai' },
-          'madras': { code: 'MAA', fullName: 'Chennai' },
+      // Simplified City Validation/Code Mapping (using the map defined earlier)
+      const cityMap: {[key: string]: { code: string, fullName: string }} = {
+          'delhi': { code: 'DEL', fullName: 'Delhi' }, 'new delhi': { code: 'DEL', fullName: 'Delhi' },
+          'mumbai': { code: 'BOM', fullName: 'Mumbai' }, 'bombay': { code: 'BOM', fullName: 'Mumbai' },
+          'bangalore': { code: 'BLR', fullName: 'Bangalore' }, 'bengaluru': { code: 'BLR', fullName: 'Bangalore' },
           'hyderabad': { code: 'HYD', fullName: 'Hyderabad' },
+          'chennai': { code: 'MAA', fullName: 'Chennai' }, 'madras': { code: 'MAA', fullName: 'Chennai' },
+          'kolkata': { code: 'CCU', fullName: 'Kolkata' }, 'calcutta': { code: 'CCU', fullName: 'Kolkata' },
           'ahmedabad': { code: 'AMD', fullName: 'Ahmedabad' },
           'pune': { code: 'PNQ', fullName: 'Pune' },
           'jaipur': { code: 'JAI', fullName: 'Jaipur' },
-          'goa': { code: 'GOI', fullName: 'Goa' }
-        };
-        
-        const normalizedCity = cityName.toLowerCase().trim();
-        console.log(`Validating city: ${normalizedCity}`);
-        
-        // Direct check for special cases
-        if (specialCases[normalizedCity]) {
-          console.log(`Found exact match for special case: ${normalizedCity}`);
-          return specialCases[normalizedCity];
-        }
-        
-        // Check partial matches for special cases
-        for (const [key, value] of Object.entries(specialCases)) {
-          if (normalizedCity.includes(key) || key.includes(normalizedCity)) {
-            console.log(`Found partial match for special case: ${key}`);
-            return value;
-          }
-        }
-        
-        // If no special case found, proceed with the standard mapping
-        const cityMap: {[key: string]: string} = {
-          'patna': 'PAT',
-          'lucknow': 'LKO',
-          'guwahati': 'GAU',
-          'bhubaneswar': 'BBI',
-          'varanasi': 'VNS',
-          'srinagar': 'SXR',
-          'coimbatore': 'CJB',
-          'trivandrum': 'TRV',
-          'thiruvananthapuram': 'TRV',
-          'kochi': 'COK',
-          'cochin': 'COK',
-          'indore': 'IDR',
-          'nagpur': 'NAG',
-          'chandigarh': 'IXC',
-          'amritsar': 'ATQ',
-          'raipur': 'RPR',
-          'visakhapatnam': 'VTZ',
-          'vizag': 'VTZ',
-          'bhopal': 'BHO',
-          'udaipur': 'UDR',
-          // Add more cities as needed
-        };
-        
-        // Check if the city is in our map
-        for (const [city, code] of Object.entries(cityMap)) {
-          if (normalizedCity.includes(city) || city.includes(normalizedCity)) {
-            console.log(`Matched city ${city} with code ${code}`);
-            return { code, fullName: city.charAt(0).toUpperCase() + city.slice(1) };
-          }
-        }
-        
-        // If not found, just use the first 3 letters uppercased
-        console.log(`No match found for ${normalizedCity}, using first 3 letters as code`);
-        return { 
-          code: normalizedCity.slice(0, 3).toUpperCase(), 
-          fullName: normalizedCity.charAt(0).toUpperCase() + normalizedCity.slice(1).toLowerCase() 
-        };
+          'ranchi': { code: 'IXR', fullName: 'Ranchi' },
+          'patna': { code: 'PAT', fullName: 'Patna' },
+          'lucknow': { code: 'LKO', fullName: 'Lucknow' },
+          'guwahati': { code: 'GAU', fullName: 'Guwahati' },
+          'bhubaneswar': { code: 'BBI', fullName: 'Bhubaneswar' },
+          'goa': { code: 'GOI', fullName: 'Goa (Mopa/Dabolim)' }, // Specify both airports or handle later
+          'varanasi': { code: 'VNS', fullName: 'Varanasi' },
+          'srinagar': { code: 'SXR', fullName: 'Srinagar' },
+          'coimbatore': { code: 'CJB', fullName: 'Coimbatore' },
+          'trivandrum': { code: 'TRV', fullName: 'Trivandrum' }, 'thiruvananthapuram': { code: 'TRV', fullName: 'Trivandrum' },
+          'indore': { code: 'IDR', fullName: 'Indore' },
+          'nagpur': { code: 'NAG', fullName: 'Nagpur' },
+          'chandigarh': { code: 'IXC', fullName: 'Chandigarh' },
+          'amritsar': { code: 'ATQ', fullName: 'Amritsar' },
+          'raipur': { code: 'RPR', fullName: 'Raipur' },
+          'visakhapatnam': { code: 'VTZ', fullName: 'Visakhapatnam' }, 'vizag': { code: 'VTZ', fullName: 'Visakhapatnam' },
+          'bhopal': { code: 'BHO', fullName: 'Bhopal' },
+          'udaipur': { code: 'UDR', fullName: 'Udaipur' },
+          'kochi': { code: 'COK', fullName: 'Kochi' }, 'cochin': { code: 'COK', fullName: 'Kochi' }
+          // Add more cities/codes as needed
+      };
+
+      const getCityInfo = (name: string) => {
+          const normalized = name.toLowerCase().trim();
+          return cityMap[normalized] || { 
+              code: normalized.slice(0, 3).toUpperCase(), // Fallback code
+              fullName: name.charAt(0).toUpperCase() + name.slice(1).toLowerCase() // Fallback name
+          };
+      };
+
+      const sourceInfo = getCityInfo(source);
+      const destInfo = getCityInfo(destination);
+      
+      if (sourceInfo.code === destInfo.code) {
+         return "It looks like the departure and destination cities are the same. Could you please provide different cities for your flight search?";
       }
+
+      console.log(`Mapped cities: ${sourceInfo.fullName} (${sourceInfo.code}) -> ${destInfo.fullName} (${destInfo.code})`);
+      conversationContext.lastTopic = 'flight_search_initiated';
       
-      const sourceInfo = validateAndGetCode(source);
-      const destInfo = validateAndGetCode(destination);
-      
-      const sourceCode = sourceInfo.code;
-      const destCode = destInfo.code;
-      const sourceName = sourceInfo.fullName;
-      const destName = destInfo.fullName;
-      
-      console.log(`Creating flight search for ${sourceCode} to ${destCode} on ${flightDate.toLocaleDateString()}`);
-      
-      // Add variation to search response
       const responses = [
-        `I'll find you flights from ${sourceName} (${sourceCode}) to ${destName} (${destCode}) on ${flightDate.toLocaleDateString()}. Hang tight!`,
-        `Looking for flights from ${sourceName} to ${destName} on ${flightDate.toLocaleDateString()}. One moment please...`,
-        `Searching for the best flight options from ${sourceName} to ${destName} for ${flightDate.toLocaleDateString()}. This will just take a moment.`,
-        `I'll search for flights between ${sourceName} and ${destName} for ${flightDate.toLocaleDateString()}. Please wait a moment while I find the best options.`
+        `Alright! Searching for flights from ${sourceInfo.fullName} (${sourceInfo.code}) to ${destInfo.fullName} (${destInfo.code}) for ${flightDate.toLocaleDateString()}. Give me just a moment... ✈️`,
+        `Okay, looking up flights from ${sourceInfo.fullName} to ${destInfo.fullName} departing on ${flightDate.toLocaleDateString()}. I'll be right back with the options!`,
+        `Got it! Let's find the best flights between ${sourceInfo.fullName} (${sourceInfo.code}) and ${destInfo.fullName} (${destInfo.code}) on ${flightDate.toLocaleDateString()}. Searching now...`,
+        `Perfect! I'm on the hunt for flights from ${sourceInfo.fullName} to ${destInfo.fullName} for ${flightDate.toLocaleDateString()}. Please wait while I gather the details.`
       ];
       
       const randomResponse = responses[Math.floor(Math.random() * responses.length)];
       
-      return `${randomResponse}
+      // Ensure date is in YYYY-MM-DDTHH:mm:ss.sssZ format for consistency
+      const isoDateString = flightDate.toISOString(); 
 
-<flight-search source="${sourceCode}" destination="${destCode}" date="${flightDate.toISOString()}" />`;
+      return `${randomResponse}\n\n<flight-search source="${sourceInfo.code}" destination="${destInfo.code}" date="${isoDateString}" />`;
     }
     
-    // Try getting a Gemini response for more natural handling of partial queries
-    const geminiResponse = await getGeminiResponse(userMessage, currentContext);
+    // --- If search details are incomplete ---
+    console.log('Flight search query details incomplete.');
+    conversationContext.lastTopic = 'clarification_needed';
+    const geminiResponse = await getGeminiResponse(userMessage, currentContext + " User's request for flights is incomplete.");
     if (geminiResponse) return geminiResponse;
     
-    return "I'd be happy to help you find flights! Could you please provide the departure city, destination, and travel date? For example: 'Find flights from Delhi to Mumbai on 15th July' or 'Show flights Mumbai to Delhi on 3rd Apr'";
+    return "Happy to help you find flights! 😊 To get started, could you please tell me the departure city, destination city, and the date you'd like to travel? For example: 'Flights from Mumbai to Goa on 25th December'.";
   }
 
-  // If we have flight search results
-  if (searchParams && flights && flights.length > 0) {
-    console.log(`Generating response for ${flights.length} flights from ${searchParams.source} to ${searchParams.destination}`);
-    
-    // Add cities to conversation context for future reference
-    conversationContext.mentionedCities.add(searchParams.source);
-    conversationContext.mentionedCities.add(searchParams.destination);
-    conversationContext.lastTopic = 'flight_results';
-    
-    // Sort flights by price (cheapest first)
-    const sortedFlights = [...flights].sort((a, b) => a.price - b.price);
-    
-    const cheapestFlight = sortedFlights[0];
-    
-    // Find fastest flight by calculating duration
-    const fastestFlight = flights.reduce((prev, current) => {
-      const prevDuration = new Date(prev.arrival_time).getTime() - new Date(prev.departure_time).getTime();
-      const currDuration = new Date(current.arrival_time).getTime() - new Date(current.departure_time).getTime();
-      return (prevDuration < currDuration) ? prev : current;
-    });
-    
-    const departureTime = new Date(cheapestFlight.departure_time);
-    const arrivalTime = new Date(cheapestFlight.arrival_time);
+  // --- Handle Flight Search Results ---
+  if (searchParams && flights) { 
+      conversationContext.lastTopic = 'flight_results_presented';
+      const dateString = searchParams.date.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 
-    const durationMinutes = Math.floor((arrivalTime.getTime() - departureTime.getTime()) / (1000 * 60));
-    const hours = Math.floor(durationMinutes / 60);
-    const minutes = durationMinutes % 60;
+      // --- Sorting Logic ---
+      let sortedFlights = [...flights];
+      let sortCriteria = 'price'; // Default sort
 
-    // Limit to 5 flights maximum to prevent overwhelming the UI
-    const flightsToShow = sortedFlights.slice(0, 5);
-    console.log(`Showing ${flightsToShow.length} flights in results`);
-
-    // Add variation to the flight results intro
-    const intros = [
-      `Great news! I found ${flights.length} flights from ${searchParams.source} to ${searchParams.destination} on ${searchParams.date.toLocaleDateString('en-IN', {day: 'numeric', month: 'long', year: 'numeric'})}.`,
-      `I've found ${flights.length} flight options for your trip from ${searchParams.source} to ${searchParams.destination} on ${searchParams.date.toLocaleDateString('en-IN', {day: 'numeric', month: 'long', year: 'numeric'})}.`,
-      `Here are ${flights.length} flights available from ${searchParams.source} to ${searchParams.destination} on ${searchParams.date.toLocaleDateString('en-IN', {day: 'numeric', month: 'long', year: 'numeric'})}.`,
-      `I've discovered ${flights.length} flights matching your search from ${searchParams.source} to ${searchParams.destination} on ${searchParams.date.toLocaleDateString('en-IN', {day: 'numeric', month: 'long', year: 'numeric'})}.`
-    ];
-
-    const randomIntro = intros[Math.floor(Math.random() * intros.length)];
-    
-    let flightResultsXml = '';
-    
-    // Create the flight results XML structure
-    flightsToShow.forEach(flight => {
-      const depTime = new Date(flight.departure_time);
-      const arrTime = new Date(flight.arrival_time);
-      const flightDuration = Math.floor((arrTime.getTime() - depTime.getTime()) / (1000 * 60));
-      const flightHours = Math.floor(flightDuration / 60);
-      const flightMinutes = flightDuration % 60;
+      // Check if user asked to sort by duration in the *previous* message
+      // (A more robust solution would involve proper state management)
+      if (conversationContext.lastTopic === 'asked_sort_duration') {
+          sortCriteria = 'duration';
+          console.log('Sorting by duration based on previous context.');
+      } else if (userMessage.toLowerCase().includes('sort by duration') || userMessage.toLowerCase().includes('fastest')) {
+          sortCriteria = 'duration';
+          console.log('Sorting by duration based on current message.');
+      } else if (userMessage.toLowerCase().includes('sort by price') || userMessage.toLowerCase().includes('cheapest')) {
+          sortCriteria = 'price'; // Explicitly sort by price
+          console.log('Sorting by price based on current message.');
+      }
       
-      flightResultsXml += `
-<flight>
-<airline>${flight.airline}</airline>
-<flight-number>${flight.flight_number}</flight-number>
-<departure>${format(depTime, 'HH:mm')}</departure>
-<arrival>${format(arrTime, 'HH:mm')}</arrival>
-<duration>${flightHours}h ${flightMinutes}m</duration>
+      // Function to calculate duration in minutes
+      const calculateDuration = (flight: Flight): number => {
+          try {
+              const depTime = new Date(flight.departure_time);
+              const arrTime = new Date(flight.arrival_time);
+              if (isNaN(depTime.getTime()) || isNaN(arrTime.getTime())) return Infinity; // Handle invalid dates
+              return Math.floor((arrTime.getTime() - depTime.getTime()) / (1000 * 60));
+          } catch (e) {
+              console.error("Error calculating duration:", e);
+              return Infinity;
+          }
+      };
+
+      if (sortCriteria === 'duration') {
+          sortedFlights.sort((a, b) => calculateDuration(a) - calculateDuration(b));
+          conversationContext.lastTopic = 'sorted_by_duration'; // Update context
+      } else { // Default to price
+          sortedFlights.sort((a, b) => a.price - b.price);
+          conversationContext.lastTopic = 'sorted_by_price'; // Update context
+      }
+      // --- End Sorting Logic ---
+
+      if (flights.length > 0) {
+          console.log(`Generating response for ${flights.length} flights found (${sortCriteria} sort): ${searchParams.source} -> ${searchParams.destination}`);
+          
+          const cheapestFlight = [...flights].sort((a, b) => a.price - b.price)[0]; // Always find the absolute cheapest for summary
+          const fastestFlight = [...flights].sort((a, b) => calculateDuration(a) - calculateDuration(b))[0]; // Find the fastest
+          
+          const departureTime = new Date(cheapestFlight.departure_time);
+          const arrivalTime = new Date(cheapestFlight.arrival_time);
+          const durationMinutes = calculateDuration(cheapestFlight);
+          const hours = durationMinutes !== Infinity ? Math.floor(durationMinutes / 60) : 0;
+          const minutes = durationMinutes !== Infinity ? durationMinutes % 60 : 0;
+
+          const flightsToShow = sortedFlights.slice(0, 5); // Limit results display based on current sort
+
+          const intros = [
+            `Great news! I found ${flights.length} flight${flights.length > 1 ? 's' : ''} from ${searchParams.source} to ${searchParams.destination} for ${dateString}. Sorted by ${sortCriteria}, here are the top ${flightsToShow.length}:`,
+            `Success! ✨ I discovered ${flights.length} flight option${flights.length > 1 ? 's' : ''} for your trip from ${searchParams.source} to ${searchParams.destination} on ${dateString}. Here they are, sorted by ${sortCriteria}:`,
+            `Okay, I've got ${flights.length} flight${flights.length > 1 ? 's' : ''} ready for you from ${searchParams.source} to ${searchParams.destination} on ${dateString}. Displaying the top ${flightsToShow.length} sorted by ${sortCriteria}:`,
+          ];
+          const randomIntro = intros[Math.floor(Math.random() * intros.length)];
+          
+          let flightResultsXml = '';
+          flightsToShow.forEach(flight => {
+              const depTime = new Date(flight.departure_time);
+              const arrTime = new Date(flight.arrival_time);
+              const flightDuration = calculateDuration(flight);
+              const flightHours = flightDuration !== Infinity ? Math.floor(flightDuration / 60) : 0;
+              const flightMinutes = flightDuration !== Infinity ? flightDuration % 60 : 0;
+              
+              // Add full ISO timestamps for more detailed display
+              flightResultsXml += `\n<flight>
+<airline>${flight.airline || 'Unknown Airline'}</airline>
+<flight_number>${flight.flight_number || 'Unknown'}</flight_number> 
+<departure_time>${format(depTime, 'HH:mm')}</departure_time>
+<arrival_time>${format(arrTime, 'HH:mm')}</arrival_time>
+<departure_iso>${depTime.toISOString()}</departure_iso> 
+<arrival_iso>${arrTime.toISOString()}</arrival_iso>
+<duration>${flightHours > 0 ? `${flightHours}h ` : ''}${flightMinutes}m</duration>
 <price>${formatPrice(flight.price)}</price>
 </flight>`;
-    });
-    
-    console.log(`Generated ${flightResultsXml.length} characters of flight XML`);
+          });
+          
+          console.log(`Generated flight XML for ${flightsToShow.length} flights.`);
 
-    const response = `${randomIntro}
+          // Always mention the cheapest, even if sorted by duration
+          const summary = `The absolute cheapest option is with ${cheapestFlight.airline} for ${formatPrice(cheapestFlight.price)} (${hours > 0 ? `${hours}h ` : ''}${minutes}m flight time).`; 
+          const fastestSummary = sortCriteria === 'price' && fastestFlight ? ` The fastest is ${calculateDuration(fastestFlight)}m with ${fastestFlight.airline} for ${formatPrice(fastestFlight.price)}.` : ''; // Only show if sorted by price
+          
+          const followUpOptions = [
+             sortCriteria === 'price' ? '2. Sort by shortest duration?' : '2. Sort by lowest price?',
+             '3. Look for a specific airline?',
+             '4. Keep an eye on prices for this route?'
+          ];
 
-<flight-results>${flightResultsXml}
-</flight-results>
+          const followUp = `\n\nHow do these look? I can also help you:\n1. Filter these results (e.g., non-stop only).\n${followUpOptions.join('\n')}\n\nJust let me know!`;
 
-The best deal I found is with ${cheapestFlight.airline} at ${formatPrice(cheapestFlight.price)}. This flight (${cheapestFlight.flight_number}) departs at ${departureTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} and arrives at ${arrivalTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}, with a total flight time of ${hours}h ${minutes}m.
-
-Would you like me to:
-1. Filter for non-stop flights only?
-2. Sort by shortest duration?
-3. Find flights with a specific airline?
-4. Notify you if prices drop for this route?
-
-Just let me know how I can refine these results for you.`;
-
-    console.log(`Final response length: ${response.length}`);
-    return response;
+          return `${randomIntro}\n\n<flight-results>${flightResultsXml}\n</flight-results>\n\n${summary}${fastestSummary}${followUp}`;
+      } else {
+          // --- Handle No Flights Found ---
+          console.log(`No flights found for ${searchParams.source} -> ${searchParams.destination} on ${dateString}`);
+          conversationContext.lastTopic = 'no_flights_found';
+          const noFlightsResponses = [
+              `Hmm, it seems there are no direct flights available from ${searchParams.source} to ${searchParams.destination} on ${dateString}. 😕 Would you like to try searching for flights on a different date or maybe check nearby airports?`,
+              `Unfortunately, I couldn't find any flights matching your search from ${searchParams.source} to ${searchParams.destination} for ${dateString}. Sometimes changing the date slightly can help. Want to try another date?`,
+              `It looks like flights are scarce for ${searchParams.source} to ${searchParams.destination} on ${dateString}. Perhaps try searching on adjacent dates or explore alternative routes?`
+          ];
+          return noFlightsResponses[Math.floor(Math.random() * noFlightsResponses.length)];
+      }
   }
 
-  // For all other messages, try using Gemini for a more varied and contextual response
-  console.log('Trying Gemini API for general response');
-  try {
-    const geminiResponse = await getGeminiResponse(userMessage, currentContext);
-    if (geminiResponse) {
-      console.log('Using Gemini response for general message');
-      return geminiResponse;
-    }
-  } catch (error) {
-    console.error('Error using Gemini API:', error);
+  // --- Handle Explicit Sorting Requests (AFTER results or BEFORE general fallback) ---
+  // Check if the user is asking to sort the results *after* they've been shown
+  if (conversationContext.lastTopic === 'flight_results_presented' || 
+      conversationContext.lastTopic === 'sorted_by_price' || 
+      conversationContext.lastTopic === 'sorted_by_duration') {
+      
+      if (userMessage.toLowerCase().includes('sort by duration') || userMessage.includes('fastest')) {
+          // Set context for the *next* response generation to actually sort and display.
+          // We can't re-sort here directly as `flights` data isn't readily available in this context scope.
+          conversationContext.lastTopic = 'asked_sort_duration';
+          // Use the original search parameters to trigger a re-fetch/re-display in the next turn
+          if (searchParams) {
+            return `Okay, sorting those results by the shortest duration. One moment...\n\n<flight-search source="${searchParams.source}" destination="${searchParams.destination}" date="${searchParams.date.toISOString()}" />`;
+          } else {
+            return "Okay, I can sort by duration. Please remind me which flight route you were looking at?";
+          }
+      }
+
+      if (userMessage.toLowerCase().includes('sort by price') || userMessage.includes('cheapest')) {
+          conversationContext.lastTopic = 'asked_sort_price'; // Price is default, but acknowledge request
+          if (searchParams) {
+            return `Sure thing! Let me sort those flight results by the lowest price for you.\n\n<flight-search source="${searchParams.source}" destination="${searchParams.destination}" date="${searchParams.date.toISOString()}" />`;
+          } else {
+             return "Sure thing, I can sort by price. Which flight search should I re-sort?";
+          }
+      }
   }
+
+  // --- Handle Specific Topics (Airline Info, Tips, etc.) ---
+  // Using Gemini first for these is often better for natural language
+  console.log('Attempting Gemini response for general query/topic.');
+  const geminiGeneralResponse = await getGeminiResponse(userMessage, currentContext);
+  if (geminiGeneralResponse) return geminiGeneralResponse;
   
-  console.log('Falling back to hardcoded general responses');
-  // If Gemini fails, use fallback responses
-  // If asking about specific airlines
-  if (userMessage.toLowerCase().includes('indigo') || 
-      userMessage.toLowerCase().includes('air india') ||
-      userMessage.toLowerCase().includes('vistara')) {
-    
-    const airline = userMessage.toLowerCase().includes('indigo') ? 'IndiGo' : 
-                   userMessage.toLowerCase().includes('air india') ? 'Air India' : 'Vistara';
-    
-    conversationContext.mentionedAirlines.add(airline.toLowerCase());
-    conversationContext.lastTopic = 'airline_info';
-                   
-    return `${airline} operates multiple flights on many popular routes in India. Their typical fare range varies based on the route, time of booking, and season. For the most accurate pricing and availability, I recommend searching for your specific route and dates. Would you like me to help you search for ${airline} flights?`;
+  // --- Fallback Logic if Gemini Fails or for Specific Keywords ---
+  console.log('Gemini failed or query matched specific keywords, using fallback logic.');
+  conversationContext.lastTopic = 'fallback_response';
+
+  if (commonAirlines.some(airline => userMessage.toLowerCase().includes(airline))) {
+    const mentioned = commonAirlines.find(airline => userMessage.toLowerCase().includes(airline)) || 'the airline';
+    return `${mentioned.charAt(0).toUpperCase() + mentioned.slice(1)} is a popular choice! They fly many routes. To get specific prices and schedules, it's best to search for your exact trip details. Want me to search flights for ${mentioned}?`;
   }
 
-  // If asking for travel tips
-  if (userMessage.toLowerCase().includes('tip') || userMessage.toLowerCase().includes('advice')) {
-    conversationContext.lastTopic = 'travel_tips';
-    
+  if (userMessage.toLowerCase().match(/\b(tip|advice|hack)s?\b/)) {
     const tips = [
-      "For domestic flights in India, try booking your flight 4-6 weeks in advance for the best deals.",
-      "Tuesday, Wednesday, and Saturday are typically the cheapest days to fly within India, while Friday and Sunday are usually the most expensive.",
-      "Setting up price alerts can help you catch sudden price drops for your desired route.",
-      "Consider nearby airports for potentially better deals - for example, if flying to Mumbai, check both BOM and nearby options.",
-      "The lowest airfares in India are typically found during the monsoon season (June to September) and during weekdays rather than weekends.",
-      "Some credit cards offer special discounts on flight bookings - check if your bank has any ongoing offers.",
-      "Booking very early morning or late night flights (red-eye flights) can often save you money as they're less popular time slots.",
-      "Consider connecting flights if you're on a budget, as they're often cheaper than direct flights.",
-      "If your travel dates are flexible, use the 'flexible dates' option when searching to find the cheapest days to fly.",
-      "Many airlines offer lower fares if you book a round trip rather than two one-way tickets."
+      "Sure! One tip for finding cheaper flights in India is to be flexible with your travel dates. Flying mid-week (Tuesday or Wednesday) is often less expensive than on weekends.",
+      "Happy to share a tip! Consider booking flights about 4-6 weeks in advance for domestic Indian travel – that's often the sweet spot for pricing.",
+      "Here's a piece of advice: Sign up for airline newsletters! They sometimes send out exclusive deals or announce sales early.",
+      "Travel tip! Check prices for nearby airports if possible. Sometimes flying into or out of a slightly less convenient airport can save you a good amount.",
+      "Budget tip: Early morning or late-night 'red-eye' flights can sometimes be significantly cheaper if your schedule allows!"
     ];
-    
     return tips[Math.floor(Math.random() * tips.length)];
   }
 
-  // If asking about price alerts
-  if (userMessage.toLowerCase().includes('alert') || userMessage.toLowerCase().includes('notify')) {
-    conversationContext.lastTopic = 'price_alerts';
-    
-    return "I can notify you when prices drop for your preferred routes. Just search for a flight, and I'll monitor the prices for you and send you an alert when I find a good deal. To activate this feature, please search for your route first, and then I can set up alerts for you.";
+  if (userMessage.toLowerCase().match(/\b(alert|notify|notification|price drop)s?\b/)) {
+     return "I can definitely help keep an eye on prices for you! Once you search for a specific flight route and date, just ask me to set up a price alert, and I'll let you know if the fare changes.";
   }
-
-  // If asking about best time to book
-  if (userMessage.toLowerCase().includes('when') && 
-      (userMessage.toLowerCase().includes('book') || userMessage.toLowerCase().includes('buy'))) {
-    conversationContext.lastTopic = 'booking_timing';
-    
-    return "The best time to book domestic flights in India is typically 4-6 weeks before your travel date. For international flights from India, booking 3-5 months in advance usually gets you the best rates. However, this can vary based on season and destination. Flash sales from airlines like IndiGo, SpiceJet, and Air India can offer significant discounts, so it's worth signing up for their newsletters.";
-  }
-
-  // Default responses - more varied
+  
+  // --- Generic Fallback Responses ---
   const defaultResponses = [
-    "I can help you find the best flight deals. Try asking me to search for flights between specific cities. For example: 'Find flights from Delhi to Mumbai on July 15th'.",
-    "Looking for flight information? Just tell me where you want to go and when. For example: 'Search for flights from Bangalore to Kolkata next week'.",
-    "Would you like me to provide some tips on finding the best airfare deals in India?",
-    "I'm your AI flight assistant. I can help with flight searches, price monitoring, and travel tips for both domestic and international flights from India.",
-    "Ask me to find flights for you! Just provide the departure city, destination, and travel date.",
-    "I can find flights, provide travel recommendations, or share travel tips. What would you like to know?",
-    "Looking to travel somewhere? I can help you find flights, compare prices, and get the best deals. Just let me know your destination!",
-    "Need help planning your trip? I can search for flights, provide travel advice, or answer questions about airlines and destinations."
+    "I'm here to help with all things flights! Feel free to ask me to search for a specific route, like 'flights Delhi to Bangalore tomorrow'.",
+    "Hmm, I'm not quite sure how to answer that specifically. I'm best at finding flights, providing travel tips, and giving airline info. Could you try rephrasing?",
+    "I can search for flights if you tell me the origin, destination, and date. For example: 'Find flights from Chennai to Hyderabad next Friday'.",
+    "Let's get your travel planning started! What flight route are you interested in?",
+    "I'm ready to assist! Ask me about flight prices, schedules, or general travel advice."
   ];
   
   return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
 };
 
-// Create a starting conversation
+// --- Initial Messages --- (Refreshed slightly)
 export const getInitialMessages = (): Message[] => {
   const greetings = [
-    "Hi there! I'm Flight Friend, your AI travel assistant. I can help you find flights, monitor prices, and provide travel tips. What can I help you with today?",
-    "Hello! I'm your Flight Friend assistant. I can help you search for flights, track prices, and offer travel advice. Where would you like to travel?",
-    "Welcome to Flight Friend! I'm here to help with your travel needs. Ask me about flights, destinations, or travel tips. How can I assist you today?",
-    "Greetings! I'm your AI travel companion. I can find flight options, answer travel questions, and provide recommendations. What are your travel plans?"
+    "Hi there! I'm Flight Friend, your AI travel buddy. Let's find you some great flights! Where are you thinking of going?",
+    "Hello! Flight Friend here. I can help search for flights, track prices, or give travel advice. How can I assist you today? 😊",
+    "Welcome to Flight Friend! Ready to plan your next adventure? Tell me your route and dates!",
+    "Hey! 👋 Your AI flight assistant is ready. Ask me anything about flights!"
   ];
   
   return [
@@ -635,19 +518,23 @@ export const getInitialMessages = (): Message[] => {
   ];
 };
 
-// Parse special XML tags in bot messages and extract data
+// --- Parse Flight Search Command --- (Ensure tag names match generation)
 export const parseFlightSearchCommand = (message: string): FlightSearchParams | null => {
-  const searchMatch = message.match(/<flight-search\s+source="([^"]+)"\s+destination="([^"]+)"\s+date="([^"]+)"\s*\/>/);
+  // Regex needs to match the tags generated in generateChatbotResponse
+  const searchMatch = message.match(/<flight-search\s+source="([^\"]+)"\s+destination="([^\"]+)"\s+date="([^\"]+)"\s*\/?>/); // Allow optional closing slash
   
   if (searchMatch) {
     const [_, source, destination, dateStr] = searchMatch;
-    const date = new Date(dateStr);
+    // Attempt to parse the ISO date string
+    const date = new Date(dateStr); 
     
-    return {
-      source,
-      destination,
-      date
-    };
+    if (isNaN(date.getTime())) {
+       console.error(`Failed to parse date from flight-search tag: ${dateStr}`);
+       return null; // Invalid date
+    }
+    
+    console.log(`Parsed flight search command: ${source} -> ${destination} on ${date.toISOString()}`);
+    return { source, destination, date };
   }
   
   return null;
