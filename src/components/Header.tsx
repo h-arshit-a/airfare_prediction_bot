@@ -1,5 +1,6 @@
 import React from "react";
 import { Plane } from "lucide-react";
+import ThemeToggle from "./ThemeToggle";
 
 interface HeaderProps {
   onReset?: () => void;
@@ -15,7 +16,10 @@ const Header: React.FC<HeaderProps> = ({ onReset }) => {
         <Plane className="h-6 w-6 mr-2" />
         <h1 className="text-xl font-bold">Flight Friend</h1>
       </div>
-      <div className="text-sm">Your AI Airfare Assistant</div>
+      <div className="flex items-center space-x-4">
+        <div className="text-sm">Your AI Airfare Assistant</div>
+        <ThemeToggle />
+      </div>
     </header>
   );
 };

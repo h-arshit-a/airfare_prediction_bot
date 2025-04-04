@@ -8,6 +8,7 @@ import Welcome from "./pages/Welcome";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import React from "react";
+import ThemeProvider from "./components/ThemeProvider";
 
 // Create a component wrapper to properly initialize QueryClient within the component lifecycle
 const AppContent = () => {
@@ -36,7 +37,9 @@ const AppContent = () => {
 // Main App component
 const App = () => (
   <BrowserRouter>
-    <AppContent />
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   </BrowserRouter>
 );
 
