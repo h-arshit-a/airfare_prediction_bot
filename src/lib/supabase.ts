@@ -26,6 +26,7 @@ export const getUserId = async () => {
 export type ChatMessageHistory = {
   id: string;
   user_id: string;
+  conversation_id: string;
   message_content: string;
   message_type: 'user' | 'bot';
   created_at: string;
@@ -35,7 +36,8 @@ export type ChatMessageHistory = {
 export const saveMessageToHistory = async (
   userId: string,
   content: string,
-  type: 'user' | 'bot'
+  type: 'user' | 'bot',
+  conversationId: string
 ) => {
   if (!userId) return null;
   
@@ -43,6 +45,7 @@ export const saveMessageToHistory = async (
     .from('chat_history')
     .insert({
       user_id: userId,
+      conversation_id: conversationId,
       message_content: content,
       message_type: type
     })
@@ -72,6 +75,93 @@ export const getUserChatHistory = async (userId: string) => {
   }
   
   return data as ChatMessageHistory[];
+};
+
+// Get user's conversations (grouped by conversation_id)
+export const getUserConversations = async (userId: string) => {
+  if (!userId) return [];
+  
+  // Get unique conversation IDs with their latest message date
+  const { data, error } = await supabase
+    .from('chat_history')
+    .select('conversation_id, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error getting conversations:', error);
+    return [];
+  }
+  
+  // Get unique conversation IDs
+  const conversationMap = new Map();
+  data.forEach(item => {
+    if (!conversationMap.has(item.conversation_id)) {
+      conversationMap.set(item.conversation_id, item.created_at);
+    }
+  });
+  
+  // Get first message of each conversation to use as title
+  const conversations = [];
+  
+  for (const [conversationId, timestamp] of conversationMap.entries()) {
+    const { data: firstMessage, error: firstMessageError } = await supabase
+      .from('chat_history')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single();
+      
+    if (!firstMessageError) {
+      conversations.push({
+        id: conversationId,
+        title: firstMessage.message_content.substring(0, 40) + (firstMessage.message_content.length > 40 ? '...' : ''),
+        timestamp,
+        preview: firstMessage.message_content
+      });
+    }
+  }
+  
+  return conversations;
+};
+
+// Get messages for a specific conversation
+export const getConversationMessages = async (userId: string, conversationId: string) => {
+  if (!userId || !conversationId) return [];
+  
+  const { data, error } = await supabase
+    .from('chat_history')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true });
+    
+  if (error) {
+    console.error('Error getting conversation messages:', error);
+    return [];
+  }
+  
+  return data as ChatMessageHistory[];
+};
+
+// Delete a specific conversation
+export const deleteConversation = async (userId: string, conversationId: string) => {
+  if (!userId || !conversationId) return false;
+  
+  const { error } = await supabase
+    .from('chat_history')
+    .delete()
+    .eq('user_id', userId)
+    .eq('conversation_id', conversationId);
+    
+  if (error) {
+    console.error('Error deleting conversation:', error);
+    return false;
+  }
+  
+  return true;
 };
 
 // Types for database tables

@@ -20,7 +20,11 @@ import { useToast } from "@/components/ui/use-toast";
 import AuthButtons from "../components/AuthButtons";
 import { ChatHistorySidebar } from "@/components/chat/ChatHistorySidebar";
 import { useAuth } from "../context/AuthContext";
-import { saveMessage, loadChatHistory } from "../services/chatHistoryService";
+import { 
+  saveMessage, 
+  loadChatHistory, 
+  startNewConversation 
+} from "../services/chatHistoryService";
 
 // Array of flight facts for the footer
 const flightFacts = [
@@ -113,14 +117,22 @@ const Index = () => {
     return () => clearInterval(factInterval);
   }, []);
 
-  // Function to reset the chat
+  // Function to reset the chat and start a new conversation
   const handleReset = () => {
+    // Start a new conversation
+    startNewConversation();
+
     setMessages(getInitialMessages());
     setSearchParams(null);
     setFlights([]);
     setDeal(undefined);
     // Set a new random fact when chat is reset
     setRandomFact(flightFacts[Math.floor(Math.random() * flightFacts.length)]);
+  };
+
+  // Function to handle starting a new conversation
+  const handleNewConversation = () => {
+    handleReset();
   };
 
   // Function to add a new message to the chat
@@ -267,6 +279,7 @@ const Index = () => {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onSelectConversation={handleSelectConversation}
+        onNewConversation={handleNewConversation}
       />
 
       <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6">

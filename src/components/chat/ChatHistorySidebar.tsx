@@ -1,96 +1,141 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '@/lib/supabase';
-import { format } from 'date-fns';
+import { format, formatDistance } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { Message } from '@/components/ChatMessage';
-import { loadChatHistory, clearChatHistory } from '@/services/chatHistoryService';
+import { 
+  getUserConversationList,
+  loadConversation,
+  deleteUserConversation, 
+  clearChatHistory,
+  startNewConversation
+} from '@/services/chatHistoryService';
 
 interface ChatHistoryProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectConversation: (messages: Message[]) => void;
+  onNewConversation: () => void;
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  timestamp: string;
+  preview: string;
 }
 
 export const ChatHistorySidebar: React.FC<ChatHistoryProps> = ({ 
   isOpen, 
   onClose,
-  onSelectConversation
+  onSelectConversation,
+  onNewConversation
 }) => {
   const { user } = useAuth();
-  const [history, setHistory] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [conversations, setConversations] = useState<{[key: string]: Message[]}>({});
 
   // Fetch chat history when sidebar opens or user changes
   useEffect(() => {
     if (isOpen && user) {
-      fetchChatHistory();
+      fetchConversations();
     }
   }, [isOpen, user]);
 
-  const fetchChatHistory = async () => {
+  const fetchConversations = async () => {
     if (!user) return;
     
     setIsLoading(true);
     setError(null);
     
     try {
-      console.log("Fetching chat messages for user:", user.id);
-      const messages = await loadChatHistory(user.id);
-      
-      console.log(`Loaded ${messages?.length || 0} message(s)`);
-      
-      setHistory(messages);
-      
-      // Group messages by date (simple conversation grouping)
-      const groupedConversations: {[key: string]: Message[]} = {};
-      
-      messages.forEach(message => {
-        const dateKey = message.timestamp.toLocaleDateString();
-        if (!groupedConversations[dateKey]) {
-          groupedConversations[dateKey] = [];
-        }
-        groupedConversations[dateKey].push(message);
-      });
-      
-      setConversations(groupedConversations);
+      const conversationList = await getUserConversationList(user.id);
+      setConversations(conversationList);
     } catch (error) {
-      console.error('Error fetching chat history:', error);
-      setError("Failed to load chat history. Please try again.");
+      console.error('Error fetching conversations:', error);
+      setError("Failed to load conversation history. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatTimestamp = (timestamp: string) => {
     try {
-      return format(new Date(dateString), 'MMM d, yyyy');
+      const date = new Date(timestamp);
+      return formatDistance(date, new Date(), { addSuffix: true });
+    } catch (e) {
+      return 'Unknown time';
+    }
+  };
+  
+  const formatDate = (timestamp: string) => {
+    try {
+      return format(new Date(timestamp), 'MMM d, yyyy');
     } catch (e) {
       return 'Unknown date';
     }
   };
 
   const handleRefresh = () => {
-    fetchChatHistory();
+    fetchConversations();
   };
 
-  const handleClearHistory = async (date: string, event: React.MouseEvent) => {
+  const handleSelectConversation = async (conversationId: string) => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      const messages = await loadConversation(user.id, conversationId);
+      if (messages.length > 0) {
+        onSelectConversation(messages);
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+      setError('Failed to load conversation');
+    } finally {
+      setIsLoading(false);
+      onClose();
+    }
+  };
+
+  const handleDeleteConversation = async (conversationId: string, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent triggering onSelectConversation
     
     if (!user) return;
     
     try {
-      // For now, we'll just clear all history since we don't have a clean way to clear by date
-      const success = await clearChatHistory(user.id);
+      const success = await deleteUserConversation(user.id, conversationId);
       
       if (success) {
         // Remove from local state
-        setConversations({});
+        setConversations(prevConversations => 
+          prevConversations.filter(conv => conv.id !== conversationId)
+        );
       }
     } catch (err) {
-      console.error('Failed to delete messages:', err);
+      console.error('Failed to delete conversation:', err);
+    }
+  };
+  
+  const handleNewConversation = () => {
+    startNewConversation();
+    onNewConversation();
+    onClose();
+  };
+
+  const handleClearAll = async () => {
+    if (!user || !window.confirm('Are you sure you want to delete all conversations?')) return;
+    
+    try {
+      const success = await clearChatHistory(user.id);
+      
+      if (success) {
+        setConversations([]);
+        onNewConversation();
+      }
+    } catch (err) {
+      console.error('Failed to clear history:', err);
     }
   };
 
@@ -148,8 +193,20 @@ export const ChatHistorySidebar: React.FC<ChatHistoryProps> = ({
           </p>
         </div>
 
-        <div className="overflow-y-auto h-[calc(100%-5rem)]">
-          {isLoading && Object.keys(conversations).length === 0 ? (
+        <div className="p-2">
+          <button 
+            onClick={handleNewConversation}
+            className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded flex items-center justify-center gap-2 mb-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            <span>New Conversation</span>
+          </button>
+        </div>
+
+        <div className="overflow-y-auto h-[calc(100%-8rem)]">
+          {isLoading && conversations.length === 0 ? (
             <div className="flex justify-center items-center h-32">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
             </div>
@@ -163,37 +220,35 @@ export const ChatHistorySidebar: React.FC<ChatHistoryProps> = ({
                 Try again
               </button>
             </div>
-          ) : Object.keys(conversations).length > 0 ? (
+          ) : conversations.length > 0 ? (
             <ul className="divide-y dark:divide-gray-700">
-              {Object.keys(conversations)
-                .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-                .map(date => (
-                  <li 
-                    key={date} 
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
-                    onClick={() => onSelectConversation(conversations[date])}
-                  >
-                    <div className="p-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-sm font-medium">
-                          {formatDate(date)}
-                        </h3>
-                        <button
-                          onClick={(e) => handleClearHistory(date, e)}
-                          className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-                          title="Delete conversation"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                          </svg>
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {conversations[date].length} messages
-                      </p>
+              {conversations.map(conversation => (
+                <li 
+                  key={conversation.id} 
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                  onClick={() => handleSelectConversation(conversation.id)}
+                >
+                  <div className="p-4">
+                    <div className="flex justify-between">
+                      <h3 className="text-sm font-medium truncate w-48">
+                        {conversation.title}
+                      </h3>
+                      <button
+                        onClick={(e) => handleDeleteConversation(conversation.id, e)}
+                        className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                        title="Delete conversation"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                      </button>
                     </div>
-                  </li>
-                ))}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {formatTimestamp(conversation.timestamp)}
+                    </p>
+                  </div>
+                </li>
+              ))}
             </ul>
           ) : (
             <div className="flex flex-col items-center justify-center h-40 text-center px-4">
@@ -204,6 +259,20 @@ export const ChatHistorySidebar: React.FC<ChatHistoryProps> = ({
             </div>
           )}
         </div>
+
+        {conversations.length > 0 && (
+          <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 dark:border-gray-700 p-2">
+            <button 
+              onClick={handleClearAll}
+              className="w-full py-2 text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex items-center justify-center gap-1"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+              Clear All Conversations
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
