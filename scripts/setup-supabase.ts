@@ -46,35 +46,29 @@ async function setupDatabase() {
   console.log('Setting up Supabase database...');
 
   try {
-    // Check if the table exists
-    const { error: checkError } = await supabase.from('chat_history').select('count(*)', { count: 'exact' }).limit(1);
+    // Check if the table exists - simple way by trying to insert a test record
+    const { error } = await supabase.from('chat_history').insert({
+      user_id: '00000000-0000-0000-0000-000000000000',
+      conversation_id: '00000000-0000-0000-0000-000000000000',
+      message_content: 'Test message',
+      message_type: 'bot'
+    }).select('id');
     
-    if (checkError && checkError.code === '42P01') {
-      console.log('Table does not exist. Please use the SQL console in Supabase to create it:');
-      console.log(CREATE_TABLE_SQL);
-    } else if (checkError) {
-      console.error('Error checking table:', checkError);
-    } else {
-      console.log('Table exists!');
-      
-      // Check if conversation_id column exists
-      const { data, error: describeError } = await supabase.rpc('get_table_columns', { table_name: 'chat_history' });
-      
-      if (describeError) {
-        console.error('Error checking columns:', describeError);
+    if (error) {
+      if (error.code === '42P01') { // Relation doesn't exist error
+        console.log('Table does not exist. Please use the SQL console in Supabase to create it:');
+        console.log(CREATE_TABLE_SQL);
       } else {
-        const hasConversationId = data.some((col: any) => col.column_name === 'conversation_id');
-        
-        if (!hasConversationId) {
-          console.log('conversation_id column does not exist. Please run:');
-          console.log(`
-            ALTER TABLE chat_history ADD COLUMN conversation_id UUID NOT NULL DEFAULT uuid_generate_v4();
-            CREATE INDEX idx_chat_history_conversation ON chat_history(conversation_id);
-          `);
-        } else {
-          console.log('conversation_id column exists. Table structure is correct!');
-        }
+        console.error('Error checking table:', error);
       }
+    } else {
+      console.log('Table exists with the correct structure!');
+      
+      // Delete the test row
+      await supabase
+        .from('chat_history')
+        .delete()
+        .eq('user_id', '00000000-0000-0000-0000-000000000000');
     }
     
     console.log('Database check complete!');

@@ -23,7 +23,8 @@ import { useAuth } from "../context/AuthContext";
 import { 
   saveMessage, 
   loadChatHistory, 
-  startNewConversation 
+  startNewConversation, 
+  loadConversation
 } from "../services/chatHistoryService";
 
 // Array of flight facts for the footer
@@ -247,16 +248,32 @@ const Index = () => {
   };
 
   // Handle loading a conversation from history
-  const handleSelectConversation = (historyMessages: any[]) => {
-    // Convert the stored message format back to our app's format
-    const formattedMessages = historyMessages.map(msg => ({
-      id: msg.id || uuidv4(),
-      content: msg.content,
-      type: (msg.role === 'user' ? 'user' : 'bot') as 'user' | 'bot',
-      timestamp: new Date(msg.timestamp || new Date())
-    }));
-
-    setMessages(formattedMessages);
+  const handleSelectConversation = async (messages: Message[]) => {
+    // If we're passed an array of messages, use them directly
+    if (Array.isArray(messages) && messages.length > 0) {
+      setMessages(messages);
+      setIsSidebarOpen(false);
+      return;
+    }
+    
+    // Otherwise, try to load the conversation by ID (in case we're passed a conversation ID)
+    const conversationId = messages as unknown as string;
+    if (user && typeof conversationId === 'string') {
+      try {
+        const conversationMessages = await loadConversation(user.id, conversationId);
+        if (conversationMessages.length > 0) {
+          setMessages(conversationMessages);
+        }
+      } catch (error) {
+        console.error('Error loading conversation:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load conversation history.",
+          variant: "destructive",
+        });
+      }
+    }
+    
     setIsSidebarOpen(false);
   };
 
