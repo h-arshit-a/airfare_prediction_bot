@@ -24,7 +24,7 @@ const getGeminiResponse = async (
 ): Promise<string | null> => {
   try {
     const geminiService = GeminiService.getInstance();
-
+    
     // Enhanced prompt for more human-like responses
     const prompt = `
 You are Flight Friend, a warm, friendly, and highly helpful flight assistant. Your goal is to make finding flight information easy and pleasant. 
@@ -40,12 +40,12 @@ Your friendly response:
 
     console.log("Sending enhanced prompt to Gemini API");
     const response = await geminiService.generateContent(prompt);
-
+    
     if (!response || response.trim() === "") {
       console.warn("Received empty response from Gemini API");
       return null;
     }
-
+    
     console.log("Received valid response from Gemini API");
     return response.trim(); // Trim whitespace
   } catch (error) {
@@ -64,7 +64,7 @@ export const generateChatbotResponse = async (
     "Generating chatbot response for:",
     userMessage || "flight results"
   );
-
+  
   // Simulate API delay (can be removed in production)
   await new Promise((resolve) => setTimeout(resolve, 300)); // Slightly reduced delay
 
@@ -84,7 +84,7 @@ export const generateChatbotResponse = async (
     conversationContext.mentionedCities.add(searchParams.destination);
     conversationContext.userPreferences.travelDate = searchParams.date;
   }
-
+  
   // Detect cities and airlines mentioned
   const commonCities = [
     "delhi",
@@ -150,7 +150,7 @@ export const generateChatbotResponse = async (
     console.log("Detected greeting, attempting Gemini response first.");
     const geminiResponse = await getGeminiResponse(userMessage, currentContext);
     if (geminiResponse) return geminiResponse;
-
+    
     console.log("Falling back to friendly hardcoded greeting");
     const greetings = [
       "Hey there! 👋 I'm Flight Friend. Ready to find some amazing flight deals for you?",
@@ -161,7 +161,7 @@ export const generateChatbotResponse = async (
     conversationContext.lastTopic = "greeting";
     return greetings[Math.floor(Math.random() * greetings.length)];
   }
-
+  
   // --- Handle Thank You Messages ---
   if (userMessage.toLowerCase().match(/\b(thank|thanks|thx)\b/)) {
     console.log("Detected thank you message, responding with travel wish");
@@ -274,7 +274,7 @@ export const generateChatbotResponse = async (
             console.log(
               `Found two distinct cities: ${source} -> ${destination}`
             );
-            sourceMatch = destMatch = true;
+              sourceMatch = destMatch = true;
           }
         }
       }
@@ -295,7 +295,7 @@ export const generateChatbotResponse = async (
       userMessage.match(new RegExp(datePattern, "i")) ||
       userMessage.match(new RegExp(simpleDatePattern, "i"));
 
-    if (dateMatch) {
+      if (dateMatch) {
       const dateStr = dateMatch[1].toLowerCase();
       console.log("Found date string:", dateStr);
       try {
@@ -363,7 +363,7 @@ export const generateChatbotResponse = async (
               // If parsed date is in the past, maybe it's for next year?
               parsedDate.setFullYear(parsedDate.getFullYear() + 1);
               if (parsedDate >= today) {
-                flightDate = parsedDate;
+            flightDate = parsedDate;
               } else {
                 console.warn(
                   "Parsed date is still in the past, defaulting to tomorrow."
@@ -484,7 +484,7 @@ export const generateChatbotResponse = async (
       currentContext + " User's request for flights is incomplete."
     );
     if (geminiResponse) return geminiResponse;
-
+    
     return "Happy to help you find flights! 😊 To get started, could you please tell me the departure city, destination city, and the date you'd like to travel? For example: 'Flights from Mumbai to Goa on 25th December'.";
   }
 
@@ -555,9 +555,9 @@ export const generateChatbotResponse = async (
       const fastestFlight = [...flights].sort(
         (a, b) => calculateDuration(a) - calculateDuration(b)
       )[0]; // Find the fastest
-
-      const departureTime = new Date(cheapestFlight.departure_time);
-      const arrivalTime = new Date(cheapestFlight.arrival_time);
+    
+    const departureTime = new Date(cheapestFlight.departure_time);
+    const arrivalTime = new Date(cheapestFlight.arrival_time);
       const durationMinutes = calculateDuration(cheapestFlight);
       const hours =
         durationMinutes !== Infinity ? Math.floor(durationMinutes / 60) : 0;
@@ -565,7 +565,7 @@ export const generateChatbotResponse = async (
 
       const flightsToShow = sortedFlights.slice(0, 5); // Limit results display based on current sort
 
-      const intros = [
+    const intros = [
         `Great news! I found ${flights.length} flight${
           flights.length > 1 ? "s" : ""
         } from ${searchParams.source} to ${
@@ -586,12 +586,12 @@ export const generateChatbotResponse = async (
           flightsToShow.length
         } sorted by ${sortCriteria}:`,
       ];
-      const randomIntro = intros[Math.floor(Math.random() * intros.length)];
-
+    const randomIntro = intros[Math.floor(Math.random() * intros.length)];
+    
       let flightResultsXml = "";
       flightsToShow.forEach((flight) => {
-        const depTime = new Date(flight.departure_time);
-        const arrTime = new Date(flight.arrival_time);
+      const depTime = new Date(flight.departure_time);
+      const arrTime = new Date(flight.arrival_time);
         const flightDuration = calculateDuration(flight);
         const flightHours =
           flightDuration !== Infinity ? Math.floor(flightDuration / 60) : 0;
@@ -611,8 +611,8 @@ export const generateChatbotResponse = async (
         }${flightMinutes}m</duration>
 <price>${formatPrice(flight.price)}</price>
 </flight>`;
-      });
-
+    });
+    
       console.log(`Generated flight XML for ${flightsToShow.length} flights.`);
 
       // Always mention the cheapest, even if sorted by duration
@@ -757,7 +757,7 @@ export const generateChatbotResponse = async (
     "Let's get your travel planning started! What flight route are you interested in?",
     "I'm ready to assist! Ask me about flight prices, schedules, or general travel advice.",
   ];
-
+  
   return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
 };
 
@@ -769,7 +769,7 @@ export const getInitialMessages = (): Message[] => {
     "Welcome to Flight Friend! Ready to plan your next adventure? Tell me your route and dates!",
     "Hey! 👋 Your AI flight assistant is ready. Ask me anything about flights!",
   ];
-
+  
   return [
     {
       id: uuidv4(),
@@ -788,12 +788,12 @@ export const parseFlightSearchCommand = (
   const searchMatch = message.match(
     /<flight-search\s+source="([^\"]+)"\s+destination="([^\"]+)"\s+date="([^\"]+)"\s*\/?>/
   ); // Allow optional closing slash
-
+  
   if (searchMatch) {
     const [_, source, destination, dateStr] = searchMatch;
     // Attempt to parse the ISO date string
     const date = new Date(dateStr);
-
+    
     if (isNaN(date.getTime())) {
       console.error(`Failed to parse date from flight-search tag: ${dateStr}`);
       return null; // Invalid date
@@ -804,6 +804,6 @@ export const parseFlightSearchCommand = (
     );
     return { source, destination, date };
   }
-
+  
   return null;
 };

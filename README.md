@@ -1,4 +1,70 @@
-# Welcome to your Lovable project
+# FlightFriend - AI Airfare Assistant
+
+FlightFriend is an AI-powered chatbot that helps users find flight information, get travel tips, and search for flights. This app is built using React, TypeScript, and Vite with a focus on providing a smooth user experience.
+
+## Features
+
+- **AI Chatbot Interface**: Ask questions about flights, travel tips, and more
+- **Flight Search**: Search for flights with specific parameters
+- **Sort Flight Results**: Sort by price or duration
+- **User Authentication**: Sign up and log in with email/password via Supabase
+- **Chat History**: Saved chat history for logged-in users
+- **Responsive Design**: Works on desktop and mobile devices
+
+## Authentication Setup
+
+This application uses Supabase for authentication and storing chat history. Here's how it's set up:
+
+1. **Supabase Client**: Initialized in `src/lib/supabase.ts` with project URL and anonymous key
+2. **Auth Context**: Manages authentication state in `src/lib/AuthContext.tsx`
+3. **User Interface**:
+   - Login/Signup modal through the ProfileButton component in the header
+   - User profile menu with sign-out option when authenticated
+
+## Database Schema
+
+The Supabase database includes two main tables:
+
+1. **profiles**: Stores user profile information
+   - Automatically created when a user signs up
+   - Contains email and timestamps
+
+2. **chat_messages**: Stores individual chat messages for each user
+   - Links to user profiles via user_id
+   - Stores message content, type ('user' or 'bot')
+   - Includes timestamps for sorting
+
+## Supabase Setup
+
+To set up the required database tables and security policies:
+
+1. Create a Supabase project at [https://app.supabase.com](https://app.supabase.com)
+2. Copy your project URL and anon key from the API settings
+3. Add these credentials to `src/lib/supabase.ts`
+4. Execute the SQL in `supabase/migrations/20230801000000_create_auth_tables.sql` via Supabase SQL Editor
+
+See the `supabase/README.md` file for more detailed instructions.
+
+## Local Development
+
+To run this project locally:
+
+```sh
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+```
+
+## Technologies Used
+
+- React & React Router
+- TypeScript
+- Tailwind CSS
+- shadcn/ui components
+- Supabase for authentication and database
+- Vite for fast development and building
 
 ## Project info
 
@@ -49,16 +115,6 @@ npm run dev
 - Select the "Codespaces" tab.
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
 
 ## How can I deploy this project?
 

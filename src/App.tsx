@@ -3,12 +3,13 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import Welcome from "./pages/Welcome";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import React from "react";
 import ThemeProvider from "./components/ThemeProvider";
+import { AuthProvider } from "./context/AuthContext";
 
 // Create a component wrapper to properly initialize QueryClient within the component lifecycle
 const AppContent = () => {
@@ -38,7 +39,9 @@ const AppContent = () => {
 const App = () => (
   <BrowserRouter>
     <ThemeProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ThemeProvider>
   </BrowserRouter>
 );

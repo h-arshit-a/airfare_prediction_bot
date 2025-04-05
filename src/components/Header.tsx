@@ -1,12 +1,14 @@
 import React from "react";
 import { Plane } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
+import AuthButtons from "./AuthButtons";
 
 interface HeaderProps {
   onReset?: () => void;
+  children?: React.ReactNode;
 }
 
-const Header: React.FC<HeaderProps> = ({ onReset }) => {
+const Header: React.FC<HeaderProps> = ({ onReset, children }) => {
   return (
     <header className="bg-primary text-primary-foreground py-4 px-6 flex justify-between items-center border-b shadow-sm">
       <div
@@ -19,6 +21,8 @@ const Header: React.FC<HeaderProps> = ({ onReset }) => {
       <div className="flex items-center space-x-4">
         <div className="text-sm">Your AI Airfare Assistant</div>
         <ThemeToggle />
+        <AuthButtons />
+        {children}
       </div>
     </header>
   );
