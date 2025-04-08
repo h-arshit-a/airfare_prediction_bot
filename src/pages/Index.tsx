@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import Header from "@/components/Header";
 import ChatWindow from "@/components/ChatWindow";
@@ -26,6 +26,8 @@ import {
   startNewConversation, 
   loadConversation
 } from "../services/chatHistoryService";
+import ChatMessage from '@/components/ChatMessage';
+import { motion, AnimatePresence } from "framer-motion";
 
 // Array of flight facts for the footer
 const flightFacts = [
@@ -53,6 +55,7 @@ const Index = () => {
   const [randomFact, setRandomFact] = useState<string>("");
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Initialize with welcome message and set a random flight fact
   useEffect(() => {
@@ -278,81 +281,118 @@ const Index = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Header onReset={handleReset}>
-        {/* Chat history button only for logged in users */}
-        {user && (
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="text-sm px-3 py-1 bg-primary-700/20 hover:bg-primary-700/30 rounded-md flex items-center space-x-1"
-          >
-            <span>History</span>
-          </button>
-        )}
-      </Header>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex flex-col min-h-screen relative overflow-hidden"
+    >
+      {/* Video Background */}
+      <div className="fixed inset-0 w-full h-full z-0">
+        <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px] z-10" />
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-cover"
+        >
+          <source src="/bg.mp4" type="video/mp4" />
+        </video>
+      </div>
 
-      {/* Chat history sidebar */}
-      <ChatHistorySidebar
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        onSelectConversation={handleSelectConversation}
-        onNewConversation={handleNewConversation}
-      />
+      {/* Main Content */}
+      <div className="relative z-10 flex flex-col min-h-screen">
+        <Header onReset={handleReset} />
 
-      <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6">
-        <div className="chat-container w-full">
-          <div className="chat-header">
-            <div className="flex items-center justify-between space-x-2">
-              <div className="flex items-center space-x-2">
-                <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-4 w-4 text-blue-500 dark:text-blue-300"
-                  >
-                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" x2="8" y1="13" y2="13" />
-                    <line x1="16" x2="8" y1="17" y2="17" />
-                    <line x1="10" x2="8" y1="9" y2="9" />
-                  </svg>
-                </div>
-                <div>
-                  <h1 className="text-lg font-medium">Flight Assistant</h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Ask me about flights, travel tips, and more
-                  </p>
-                </div>
+        <ChatHistorySidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          onSelectConversation={handleSelectConversation}
+          onNewConversation={handleNewConversation}
+          onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        />
+
+        <motion.div 
+          className="flex-1 flex flex-col items-center p-0"
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <div className="w-full max-w-6xl mx-auto flex-1 flex flex-col">
+            {/* Chat messages container */}
+            <div className="flex-1 overflow-y-auto px-4 py-6">
+              <motion.div 
+                className="space-y-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                <AnimatePresence mode="popLayout">
+                  {messages.map((message, index) => (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{
+                        duration: 0.3,
+                        delay: index * 0.1,
+                        type: "spring",
+                        stiffness: 200,
+                        damping: 20
+                      }}
+                    >
+                      <ChatMessage
+                        message={message}
+                        onFlightSearch={handleFlightSearch}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                <div ref={messagesEndRef} />
+              </motion.div>
+            </div>
+
+            {/* Chat input */}
+            <div className="border-t border-white/10 bg-white/10 backdrop-blur-md">
+              <div className="max-w-6xl mx-auto">
+                <ChatInput
+                  onSendMessage={handleSendMessage}
+                  disabled={loading}
+                  placeholder="Ask me about flights, travel tips, or deals..."
+                />
               </div>
             </div>
           </div>
+        </motion.div>
 
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <ChatWindow
-              messages={messages}
-              loading={loading}
-              onFlightSearch={handleFlightSearch}
-            />
-            <ChatInput onSendMessage={handleSendMessage} disabled={loading} />
-          </div>
-        </div>
+        {/* Flight facts footer */}
+        <motion.footer 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="relative py-3 px-6 text-center border-t border-white/10 bg-black/20 backdrop-blur-md"
+        >
+          <motion.div 
+            className="flex items-center justify-center space-x-2"
+            whileHover={{ scale: 1.02 }}
+          >
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <motion.p 
+              key={randomFact}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="text-sm text-white/90"
+            >
+              {randomFact}
+            </motion.p>
+          </motion.div>
+        </motion.footer>
       </div>
-
-      {/* Flight facts footer */}
-      <footer className="py-3 px-6 text-center border-t border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm text-sm text-gray-600 dark:text-gray-400">
-        <div className="flex items-center justify-center space-x-2">
-          <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-          <p>{randomFact}</p>
-        </div>
-      </footer>
-    </div>
+    </motion.div>
   );
 };
 

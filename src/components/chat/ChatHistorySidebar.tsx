@@ -10,12 +10,15 @@ import {
   clearChatHistory,
   startNewConversation
 } from '@/services/chatHistoryService';
+import { ChevronRight, Plus, Trash2, RefreshCw, MessageSquare } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ChatHistoryProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectConversation: (messages: Message[]) => void;
   onNewConversation: () => void;
+  onToggle: () => void;
 }
 
 interface Conversation {
@@ -29,7 +32,8 @@ export const ChatHistorySidebar: React.FC<ChatHistoryProps> = ({
   isOpen, 
   onClose,
   onSelectConversation,
-  onNewConversation
+  onNewConversation,
+  onToggle
 }) => {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -145,135 +149,155 @@ export const ChatHistorySidebar: React.FC<ChatHistoryProps> = ({
 
   return (
     <>
-      {/* Backdrop for mobile */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/20 z-20 lg:hidden"
-          onClick={onClose}
-        ></div>
-      )}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-20 lg:hidden"
+            onClick={onClose}
+          />
+        )}
+      </AnimatePresence>
     
-      <div 
-        className={`fixed top-0 left-0 h-full w-72 bg-white dark:bg-gray-800 shadow-lg transition-transform duration-300 transform ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        } z-30`}
+      {/* Sidebar Toggle Button */}
+      <motion.button
+        initial={{ x: -100 }}
+        animate={{ x: 0 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={onToggle}
+        className={`fixed top-1/2 -translate-y-1/2 z-30 bg-primary hover:bg-primary/90 text-white p-3 rounded-r-xl shadow-lg transition-all duration-300 ${
+          isOpen ? 'left-[17.5rem]' : 'left-0'
+        }`}
       >
-        <div className="bg-blue-600 text-white p-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-              </svg>
-              <h2 className="text-lg font-medium">Chat History</h2>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={handleRefresh}
-                disabled={isLoading}
-                className="text-white hover:text-gray-200"
-                title="Refresh history"
-              >
-                <svg className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
-              </button>
-              <button 
-                onClick={onClose}
-                className="text-white hover:text-gray-200"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </button>
-            </div>
+        <ChevronRight 
+          className={`h-5 w-5 transition-transform duration-300 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </motion.button>
+
+      <motion.div 
+        initial={{ x: -320 }}
+        animate={{ x: isOpen ? 0 : -320 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="fixed top-0 left-0 h-full w-72 bg-white dark:bg-gray-800/95 backdrop-blur-md shadow-xl z-30"
+      >
+        <div className="bg-primary/90 backdrop-blur-md text-white p-6">
+          <div className="flex items-center gap-3">
+            <MessageSquare className="h-6 w-6" />
+            <h2 className="text-xl font-semibold">Chat History</h2>
           </div>
-          <p className="text-xs text-blue-100 mt-2">
-            Access your previous conversations
-          </p>
         </div>
 
-        <div className="p-2">
+        <motion.div 
+          className="p-3"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
           <button 
             onClick={handleNewConversation}
-            className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded flex items-center justify-center gap-2 mb-2"
+            className="w-full py-3 px-4 bg-primary/90 hover:bg-primary text-white rounded-xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md hover:shadow-xl transform hover:-translate-y-0.5"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
-            </svg>
+            <Plus className="w-5 h-5" />
             <span>New Conversation</span>
           </button>
-        </div>
+        </motion.div>
 
-        <div className="overflow-y-auto h-[calc(100%-8rem)]">
+        <div className="overflow-y-auto h-[calc(100%-8rem)] px-3">
           {isLoading && conversations.length === 0 ? (
             <div className="flex justify-center items-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <RefreshCw className="w-8 h-8 text-primary animate-spin" />
             </div>
           ) : error ? (
-            <div className="p-4 text-center">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="p-4 text-center"
+            >
               <p className="text-red-500 dark:text-red-400 mb-2">{error}</p>
               <button 
                 onClick={handleRefresh}
-                className="text-sm text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                className="text-sm text-primary hover:text-primary/80 flex items-center justify-center gap-2"
               >
+                <RefreshCw className="w-4 h-4" />
                 Try again
               </button>
-            </div>
+            </motion.div>
           ) : conversations.length > 0 ? (
-            <ul className="divide-y dark:divide-gray-700">
-              {conversations.map(conversation => (
-                <li 
-                  key={conversation.id} 
-                  className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
-                  onClick={() => handleSelectConversation(conversation.id)}
+            <motion.ul 
+              className="space-y-2"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              {conversations.map((conversation, index) => (
+                <motion.li 
+                  key={conversation.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="group"
                 >
-                  <div className="p-4">
-                    <div className="flex justify-between">
-                      <h3 className="text-sm font-medium truncate w-48">
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 cursor-pointer hover:shadow-md transition-all duration-300"
+                    onClick={() => handleSelectConversation(conversation.id)}
+                  >
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-sm font-medium truncate w-48 text-gray-900 dark:text-gray-100">
                         {conversation.title}
                       </h3>
-                      <button
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
                         onClick={(e) => handleDeleteConversation(conversation.id, e)}
-                        className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-opacity duration-200"
                         title="Delete conversation"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                        </svg>
-                      </button>
+                        <Trash2 className="w-4 h-4" />
+                      </motion.button>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       {formatTimestamp(conversation.timestamp)}
                     </p>
-                  </div>
-                </li>
+                  </motion.div>
+                </motion.li>
               ))}
-            </ul>
+            </motion.ul>
           ) : (
-            <div className="flex flex-col items-center justify-center h-40 text-center px-4">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center justify-center h-40 text-center px-4"
+            >
+              <MessageSquare className="w-8 h-8 text-gray-400 mb-2" />
               <p className="text-gray-500 dark:text-gray-400 mb-2">No chat history found</p>
               <p className="text-xs text-gray-400 dark:text-gray-500">
                 Your conversations will appear here once you start chatting.
               </p>
-            </div>
+            </motion.div>
           )}
         </div>
 
         {conversations.length > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 dark:border-gray-700 p-2">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute bottom-0 left-0 right-0 p-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700"
+          >
             <button 
               onClick={handleClearAll}
-              className="w-full py-2 text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex items-center justify-center gap-1"
+              className="w-full py-2 px-4 text-sm text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center justify-center gap-2 transition-all duration-300"
             >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-              </svg>
+              <Trash2 className="w-4 h-4" />
               Clear All Conversations
             </button>
-          </div>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
     </>
   );
 }; 

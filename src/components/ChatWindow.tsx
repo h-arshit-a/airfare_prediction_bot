@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import ChatMessage, { Message } from './ChatMessage';
 import { ScrollArea } from './ui/scroll-area';
@@ -19,8 +18,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, loading, onFlightSear
   }, [messages]);
 
   return (
-    <ScrollArea className="flex-1 h-full rounded-lg border bg-card shadow-sm">
-      <div className="flex-1 overflow-auto p-6 space-y-4">
+    <ScrollArea className="flex-1 relative">
+      <div className="flex flex-col p-4 gap-4">
         {messages.map((message) => (
           <ChatMessage 
             key={message.id} 

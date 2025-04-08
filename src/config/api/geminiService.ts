@@ -192,7 +192,8 @@ export class GeminiService {
     if (
       lowercasePrompt.includes("thank") ||
       lowercasePrompt.includes("thanks") ||
-      lowercasePrompt.includes("thx")
+      lowercasePrompt.includes("thx") ||
+      lowercasePrompt.includes("bye")
     ) {
       const thankYouResponses = [
         "You're welcome! I wish you a happy and safe journey! ✈️",
