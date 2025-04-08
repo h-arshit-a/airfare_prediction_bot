@@ -12,6 +12,7 @@ export interface Message {
   timestamp: Date;
 }
 
+
 interface ChatMessageProps {
   message: Message;
   onFlightSearch?: (command: any) => void;

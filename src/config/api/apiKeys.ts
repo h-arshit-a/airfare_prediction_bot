@@ -1,12 +1,12 @@
 // API Keys and Configurations
 export const API_KEYS = {
-  GEMINI: import.meta.env.VITE_GEMINI_API_KEY || "",
-  AVIATIONSTACK: import.meta.env.VITE_AVIATIONSTACK_API_KEY || "",
+  GEMINI: import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyCC8rmt-guxsxYjyu7Rm8iqm7K8zxqlBAg",
+  AVIATIONSTACK: import.meta.env.VITE_AVIATIONSTACK_API_KEY || "8d027a2e57f4790974bcd2f8df09cb7f",
 };
 
 // Development mode detection
 export const IS_DEV = import.meta.env.DEV || false;
-export const ENABLE_MOCKS = import.meta.env.VITE_ENABLE_MOCKS === "true";
+export const ENABLE_MOCKS = import.meta.env.VITE_ENABLE_MOCKS === "false";
 
 // Log environment configuration
 console.log("Environment Configuration:", {

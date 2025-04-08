@@ -166,7 +166,6 @@ export class GeminiService {
           return this.getMockResponse(prompt);
         }
 
-        // Cache the response briefly
         this.responseCache.set(prompt, generatedText);
         setTimeout(() => this.responseCache.delete(prompt), 5000);
 
@@ -181,7 +180,6 @@ export class GeminiService {
     }
   }
 
-  // Mock responses for development or when API is unavailable
   private getMockResponse(prompt: string): string {
     const lowercasePrompt = prompt.toLowerCase();
 
