@@ -84,13 +84,6 @@ const Welcome = () => {
     >
       {/* Header Controls */}
       <div className="absolute top-4 right-4 flex items-center space-x-4">
-        <button
-          onClick={() => navigate('/chat')}
-          className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-teal-500 rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center space-x-2"
-        >
-          <MessageSquareText className="h-4 w-4" />
-          <span>Go to Chat</span>
-        </button>
         <AuthButtons />
         <ThemeToggle />
       </div>
@@ -172,7 +165,7 @@ const Welcome = () => {
         >
           <Button
             size="lg"
-            className="bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-700 hover:to-teal-600 text-white px-12 py-7 text-xl rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center space-x-3 group animate-pulse"
+            className="bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-700 hover:to-teal-600 text-white px-12 py-7 text-xl rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center space-x-3 group"
             onClick={() => navigate("/chat")}
           >
             <MessageSquareText className="h-6 w-6 transition-transform duration-300 group-hover:rotate-12" />
