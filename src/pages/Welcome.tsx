@@ -29,7 +29,7 @@ const travelFacts = [
   "Did you know? The busiest airport in India by passenger traffic is Delhi's Indira Gandhi International Airport (DEL).",
   "Travel Tip: Booking flights on Tuesdays or Wednesdays often yields lower prices.",
   "Fun Fact: The longest domestic flight route in India connects Delhi and Port Blair.",
-  "Did you know? Goa has two international airports: Dabolim (GOI) and Mopa (GOX).",
+  "Travel Tip: Most airlines allow web check-in 48 hours before departure for domestic flights.",
   "Travel Tip: Always check baggage allowances before flying, as they vary between airlines.",
 ];
 
@@ -181,18 +181,39 @@ const Welcome = () => {
           <p className="text-sm text-blue-600 dark:text-blue-400 mt-2 font-medium">
             Click to access the chatbot
           </p>
-          {/* Dynamic Fact */}
-          <motion.p
-            key={dynamicFact} // Trigger animation on fact change
-            className="text-sm text-gray-500 dark:text-gray-500 mt-4 italic"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.4 }}
-          >
-            {dynamicFact}
-          </motion.p>
         </motion.div>
       </motion.div>
+
+      {/* Footer */}
+      <motion.footer 
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.4 }}
+        className="relative py-3 px-6 text-center border-t border-white/10 bg-black/20 backdrop-blur-md"
+      >
+        <motion.div 
+          className="flex flex-col items-center justify-center space-y-2"
+          whileHover={{ scale: 1.02 }}
+        >
+          <div className="flex items-center justify-center space-x-2">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <motion.p 
+              key={dynamicFact}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="text-sm text-white/90"
+            >
+              {dynamicFact}
+            </motion.p>
+          </div>
+          <p className="text-xs text-white/70">
+            This chatbot is developed by: Harshita Khandelwal, Saket Rajak, Raj
+          </p>
+        </motion.div>
+      </motion.footer>
     </motion.div>
   );
 };

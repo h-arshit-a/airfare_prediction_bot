@@ -374,21 +374,26 @@ const Index = () => {
           className="relative py-3 px-6 text-center border-t border-white/10 bg-black/20 backdrop-blur-md"
         >
           <motion.div 
-            className="flex items-center justify-center space-x-2"
+            className="flex flex-col items-center justify-center space-y-2"
             whileHover={{ scale: 1.02 }}
           >
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <motion.p 
-              key={randomFact}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="text-sm text-white/90"
-            >
-              {randomFact}
-            </motion.p>
+            <div className="flex items-center justify-center space-x-2">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <motion.p 
+                key={randomFact}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="text-sm text-white/90"
+              >
+                {randomFact}
+              </motion.p>
+            </div>
+            <p className="text-xs text-white/70">
+              This chatbot is developed by: Harshita Khandelwal, Saket Rajak, Raj
+            </p>
           </motion.div>
         </motion.footer>
       </div>
