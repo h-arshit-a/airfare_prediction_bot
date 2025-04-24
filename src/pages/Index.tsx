@@ -193,6 +193,10 @@ const Index = () => {
   // Handle flight search from chat
   const handleFlightSearch = async (data: FlightSearchParams) => {
     console.log("Flight search triggered:", data);
+    // Log the filter and airline parameters if present
+    if (data.filter) console.log(`Applying filter: ${data.filter}`);
+    if (data.airline) console.log(`Filtering by airline: ${data.airline}`);
+    
     setSearchParams(data);
 
     setLoading(true);
@@ -202,7 +206,7 @@ const Index = () => {
       console.log(
         `Searching flights from ${data.source} to ${
           data.destination
-        } on ${data.date.toDateString()}`
+        } on ${data.date.toDateString()}${data.filter ? ', filter: ' + data.filter : ''}${data.airline ? ', airline: ' + data.airline : ''}`
       );
       const flightResults = await searchFlights(data);
       console.log(

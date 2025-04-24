@@ -71,21 +71,18 @@ export const generateChatbotResponse = async (
   // Function to format price to INR
   const formatPrice = (price: number) => `₹${price.toLocaleString("en-IN")}`;
 
-  // --- Build Conversation Context ---
-  let currentContext = "User initiated interaction.";
-  if (conversationContext.lastTopic) {
-    currentContext += ` Last topic discussed: ${conversationContext.lastTopic}.`;
-  }
-  if (searchParams) {
-    currentContext += ` User searched for flights from ${
-      searchParams.source
-    } to ${searchParams.destination} on ${searchParams.date.toDateString()}.`;
-    conversationContext.mentionedCities.add(searchParams.source);
-    conversationContext.mentionedCities.add(searchParams.destination);
-    conversationContext.userPreferences.travelDate = searchParams.date;
-  }
+  // --- Check if the message is unrelated to flights (non-flight queries) ---
+  // This needs to be done early, before any other processing
+  const flightRelatedTerms = [
+    'flight', 'fly', 'travel', 'airline', 'plane', 'trip', 'route', 'journey', 'ticket',
+    'departure', 'arrival', 'airport', 'book', 'fare', 'price', 'schedule', 'timing',
+    'layover', 'direct', 'nonstop', 'connecting', 'one-way', 'round-trip', 'search',
+    'destination', 'baggage', 'passenger', 'boarding', 'landing', 'domestic', 'international',
+    'economy', 'business', 'first class', 'cheap', 'expensive', 'delay', 'cancel',
+    'indigo', 'air india', 'spicejet', 'vistara', 'airasia', 'goair', 'lufthansa', 'delta',
+    'etihad', 'emirates', 'jet', 'kingfisher', 'qatar', 'thai', 'singapore',
+  ];
   
-  // Detect cities and airlines mentioned
   const commonCities = [
     "delhi",
     "mumbai",
@@ -104,8 +101,52 @@ export const generateChatbotResponse = async (
     "guwahati",
     "bhubaneswar",
   ];
+  
+  // Only perform the check if we have a user message to analyze
+  // Skip the check for direct flight result displays (when no user message is present)
+  if (userMessage && userMessage.trim() !== '') {
+    const containsFlightRelatedTerms = flightRelatedTerms.some(term => 
+      userMessage.toLowerCase().includes(term)
+    );
+    
+    // Also check if the message mentions common Indian cities (likely for flight routes)
+    const containsCommonCities = commonCities.some(city =>
+      userMessage.toLowerCase().includes(city)
+    );
+    
+    // Allow basic conversational responses (greetings, thanks)
+    const isBasicConversation = userMessage.toLowerCase().match(/^(hi|hello|hey|greetings)\b/) ||
+                              userMessage.toLowerCase().match(/\b(thank|thanks|thx)\b/);
+    
+    if (!containsFlightRelatedTerms && !containsCommonCities && !isBasicConversation) {
+      // Message is not related to flights, greetings, or thank you messages
+      const errorResponses = [
+        "I'm sorry, but I can only provide assistance with flight-related queries. Please ask me about finding flights, checking prices, or sorting flight options by distance and price.",
+        "I apologize, but I'm designed specifically to help with flight information. Could you ask me about flights instead?",
+        "I can't provide information about that topic. I'm specialized in helping you find and sort flights by distance and price. Please ask me about flights instead.",
+        "Sorry, but that's outside my area of expertise. I can only help with flight-related questions. Feel free to ask me about finding flights or comparing flight options!",
+      ];
+      return errorResponses[Math.floor(Math.random() * errorResponses.length)];
+    }
+  }
+
+  // --- Build Conversation Context ---
+  let currentContext = "User initiated interaction.";
+  if (conversationContext.lastTopic) {
+    currentContext += ` Last topic discussed: ${conversationContext.lastTopic}.`;
+  }
+  if (searchParams) {
+    currentContext += ` User searched for flights from ${
+      searchParams.source
+    } to ${searchParams.destination} on ${searchParams.date.toDateString()}.`;
+    conversationContext.mentionedCities.add(searchParams.source);
+    conversationContext.mentionedCities.add(searchParams.destination);
+    conversationContext.userPreferences.travelDate = searchParams.date;
+  }
+  
+  // Detect cities and airlines mentioned
   commonCities.forEach((city) => {
-    if (userMessage.toLowerCase().includes(city)) {
+    if (userMessage && userMessage.toLowerCase().includes(city)) {
       conversationContext.mentionedCities.add(city);
     }
   });
@@ -490,7 +531,15 @@ export const generateChatbotResponse = async (
 
   // --- Handle Flight Search Results ---
   if (searchParams && flights) {
-    conversationContext.lastTopic = "flight_results_presented";
+    // Set conversation topic based on sort parameter or previous context
+    if (searchParams.sort === "duration") {
+      conversationContext.lastTopic = "sorted_by_duration";
+    } else if (searchParams.sort === "price" || !searchParams.sort) {
+      conversationContext.lastTopic = "sorted_by_price";
+    } else {
+      conversationContext.lastTopic = "flight_results_presented";
+    }
+    
     const dateString = searchParams.date.toLocaleDateString("en-IN", {
       day: "numeric",
       month: "long",
@@ -501,23 +550,22 @@ export const generateChatbotResponse = async (
     let sortedFlights = [...flights];
     let sortCriteria = "price"; // Default sort
 
-    // Check if user asked to sort by duration in the *previous* message
-    // (A more robust solution would involve proper state management)
-    if (conversationContext.lastTopic === "asked_sort_duration") {
+    // Determine sort criteria from searchParams.sort or conversation context
+    if (searchParams.sort === "duration" || conversationContext.lastTopic === "asked_sort_duration") {
       sortCriteria = "duration";
-      console.log("Sorting by duration based on previous context.");
+      console.log("Sorting by duration based on search parameter or previous context");
     } else if (
       userMessage.toLowerCase().includes("sort by duration") ||
       userMessage.toLowerCase().includes("fastest")
     ) {
       sortCriteria = "duration";
-      console.log("Sorting by duration based on current message.");
+      console.log("Sorting by duration based on current message");
     } else if (
       userMessage.toLowerCase().includes("sort by price") ||
       userMessage.toLowerCase().includes("cheapest")
     ) {
       sortCriteria = "price"; // Explicitly sort by price
-      console.log("Sorting by price based on current message.");
+      console.log("Sorting by price based on current message");
     }
 
     // Function to calculate duration in minutes
@@ -556,8 +604,8 @@ export const generateChatbotResponse = async (
         (a, b) => calculateDuration(a) - calculateDuration(b)
       )[0]; // Find the fastest
     
-    const departureTime = new Date(cheapestFlight.departure_time);
-    const arrivalTime = new Date(cheapestFlight.arrival_time);
+      const departureTime = new Date(cheapestFlight.departure_time);
+      const arrivalTime = new Date(cheapestFlight.arrival_time);
       const durationMinutes = calculateDuration(cheapestFlight);
       const hours =
         durationMinutes !== Infinity ? Math.floor(durationMinutes / 60) : 0;
@@ -565,28 +613,43 @@ export const generateChatbotResponse = async (
 
       const flightsToShow = sortedFlights.slice(0, 5); // Limit results display based on current sort
 
-    const intros = [
-        `Great news! I found ${flights.length} flight${
-          flights.length > 1 ? "s" : ""
-        } from ${searchParams.source} to ${
+      // Construct intro based on filters and sort criteria
+      let specialIntro = "";
+      let filterDescription = "";
+      
+      // Add filter description
+      if (searchParams.filter === "non-stop") {
+        specialIntro = "non-stop ";
+        filterDescription = " (showing non-stop flights only)";
+      }
+      
+      // Add airline filter description
+      if (searchParams.airline) {
+        const airlineName = searchParams.airline.charAt(0).toUpperCase() + searchParams.airline.slice(1);
+        specialIntro = `${airlineName} `;
+        filterDescription = ` (showing ${airlineName} flights only)`;
+      }
+
+      const intros = [
+        `Great news! I found ${flights.length} ${specialIntro}flights from ${searchParams.source} to ${
           searchParams.destination
-        } for ${dateString}. Sorted by ${sortCriteria}, here are the top ${
+        } for ${dateString}. Sorted by ${sortCriteria}${filterDescription}, here are the top ${
           flightsToShow.length
         }:`,
-        `Success! ✨ I discovered ${flights.length} flight option${
+        `Success! ✨ I discovered ${flights.length} ${specialIntro}flight option${
           flights.length > 1 ? "s" : ""
         } for your trip from ${searchParams.source} to ${
           searchParams.destination
-        } on ${dateString}. Here they are, sorted by ${sortCriteria}:`,
-        `Okay, I've got ${flights.length} flight${
+        } on ${dateString}. Here they are, sorted by ${sortCriteria}${filterDescription}:`,
+        `Okay, I've got ${flights.length} ${specialIntro}flight${
           flights.length > 1 ? "s" : ""
         } ready for you from ${searchParams.source} to ${
           searchParams.destination
         } on ${dateString}. Displaying the top ${
           flightsToShow.length
-        } sorted by ${sortCriteria}:`,
+        } sorted by ${sortCriteria}${filterDescription}:`,
       ];
-    const randomIntro = intros[Math.floor(Math.random() * intros.length)];
+      const randomIntro = intros[Math.floor(Math.random() * intros.length)];
     
       let flightResultsXml = "";
       flightsToShow.forEach((flight) => {
@@ -663,14 +726,42 @@ export const generateChatbotResponse = async (
   if (
     conversationContext.lastTopic === "flight_results_presented" ||
     conversationContext.lastTopic === "sorted_by_price" ||
-    conversationContext.lastTopic === "sorted_by_duration"
+    conversationContext.lastTopic === "sorted_by_duration" ||
+    conversationContext.lastTopic === "asked_filter_nonstop" ||
+    conversationContext.lastTopic === "asked_filter_airline" ||
+    conversationContext.lastTopic === "set_price_alert"
   ) {
+    // Check if user is selecting an option by number (1, 2, 3, 4) from the follow-up options
+    const numberMatch = userMessage.match(/^\s*([1-4])\s*$/);
+    const selectedNumber = numberMatch ? parseInt(numberMatch[1]) : null;
+    
+    // Handle filter request (option 1)
+    if (selectedNumber === 1 || 
+        userMessage.toLowerCase().includes("filter") || 
+        userMessage.toLowerCase().includes("non-stop") || 
+        userMessage.toLowerCase().includes("nonstop")) {
+      conversationContext.lastTopic = "asked_filter_nonstop";
+      
+      if (searchParams) {
+        return `I'll filter those results to show non-stop flights only. One moment...\n\n<flight-search source="${
+          searchParams.source
+        }" destination="${
+          searchParams.destination
+        }" date="${searchParams.date.toISOString()}" filter="non-stop" />`;
+      } else {
+        return "I can filter for non-stop flights. Which route were you looking at?";
+      }
+    }
+    
+    // Handle sort by duration request (option 2)
     if (
+      selectedNumber === 2 ||
       userMessage.toLowerCase().includes("sort by duration") ||
-      userMessage.includes("fastest")
+      userMessage.toLowerCase().includes("fastest") ||
+      userMessage.toLowerCase().includes("shortest") ||
+      userMessage.toLowerCase().includes("duration")
     ) {
       // Set context for the *next* response generation to actually sort and display.
-      // We can't re-sort here directly as `flights` data isn't readily available in this context scope.
       conversationContext.lastTopic = "asked_sort_duration";
       // Use the original search parameters to trigger a re-fetch/re-display in the next turn
       if (searchParams) {
@@ -678,15 +769,17 @@ export const generateChatbotResponse = async (
           searchParams.source
         }" destination="${
           searchParams.destination
-        }" date="${searchParams.date.toISOString()}" />`;
+        }" date="${searchParams.date.toISOString()}" sort="duration" />`;
       } else {
         return "Okay, I can sort by duration. Please remind me which flight route you were looking at?";
       }
     }
 
+    // Handle sort by price request (option 2 alternative)
     if (
       userMessage.toLowerCase().includes("sort by price") ||
-      userMessage.includes("cheapest")
+      userMessage.toLowerCase().includes("cheapest") ||
+      userMessage.toLowerCase().includes("lowest price")
     ) {
       conversationContext.lastTopic = "asked_sort_price"; // Price is default, but acknowledge request
       if (searchParams) {
@@ -694,16 +787,101 @@ export const generateChatbotResponse = async (
           searchParams.source
         }" destination="${
           searchParams.destination
-        }" date="${searchParams.date.toISOString()}" />`;
+        }" date="${searchParams.date.toISOString()}" sort="price" />`;
       } else {
         return "Sure thing, I can sort by price. Which flight search should I re-sort?";
       }
+    }
+    
+    // Handle specific airline request (option 3)
+    if (selectedNumber === 3 || 
+        userMessage.toLowerCase().includes("airline") || 
+        userMessage.toLowerCase().match(/\b(indigo|air india|vistara|spicejet|goair|airasia)\b/i)) {
+      
+      // Try to extract the airline name from the message
+      let airlineName = "";
+      const commonAirlineNames = ["indigo", "air india", "vistara", "spicejet", "goair", "airasia"];
+      
+      for (const airline of commonAirlineNames) {
+        if (userMessage.toLowerCase().includes(airline)) {
+          airlineName = airline;
+          break;
+        }
+      }
+      
+      if (airlineName) {
+        conversationContext.lastTopic = "asked_filter_airline";
+        
+        if (searchParams) {
+          return `I'll filter the results to show only ${airlineName.charAt(0).toUpperCase() + airlineName.slice(1)} flights. One moment...\n\n<flight-search source="${
+            searchParams.source
+          }" destination="${
+            searchParams.destination
+          }" date="${searchParams.date.toISOString()}" airline="${airlineName}" />`;
+        } else {
+          return `I'd be happy to show you ${airlineName.charAt(0).toUpperCase() + airlineName.slice(1)} flights. Which route are you interested in?`;
+        }
+      } else {
+        // If no airline was specified but option 3 was selected
+        conversationContext.lastTopic = "asked_which_airline";
+        return "Which airline would you like to see flights for? Some popular options are IndiGo, Air India, Vistara, SpiceJet, GoAir, and AirAsia.";
+      }
+    }
+    
+    // Handle price alert request (option 4)
+    if (selectedNumber === 4 || 
+        (userMessage.toLowerCase().includes("price") && 
+         (userMessage.toLowerCase().includes("alert") || 
+          userMessage.toLowerCase().includes("track") || 
+          userMessage.toLowerCase().includes("monitor") || 
+          userMessage.toLowerCase().includes("eye") || 
+          userMessage.toLowerCase().includes("watch") || 
+          userMessage.toLowerCase().includes("notify")))) {
+      
+      conversationContext.lastTopic = "set_price_alert";
+      
+      if (searchParams) {
+        // In a real app, this would save the alert to a database
+        return `Great! I've set up a price alert for flights from ${searchParams.source} to ${
+          searchParams.destination
+        } on ${searchParams.date.toLocaleDateString()}. I'll notify you if the prices change significantly! Is there anything else you'd like to know about this route?`;
+      } else {
+        return "I'd be happy to set up a price alert for you. Could you remind me which route you were interested in?";
+      }
+    }
+  }
+  
+  // Handle response after user specifies airline when prompted
+  if (conversationContext.lastTopic === "asked_which_airline") {
+    // Try to extract the airline name from the message
+    let airlineName = "";
+    const commonAirlineNames = ["indigo", "air india", "vistara", "spicejet", "goair", "airasia"];
+    
+    for (const airline of commonAirlineNames) {
+      if (userMessage.toLowerCase().includes(airline)) {
+        airlineName = airline;
+        break;
+      }
+    }
+    
+    if (airlineName && searchParams) {
+      conversationContext.lastTopic = "asked_filter_airline";
+      return `I'll filter the results to show only ${airlineName.charAt(0).toUpperCase() + airlineName.slice(1)} flights. One moment...\n\n<flight-search source="${
+        searchParams.source
+      }" destination="${
+        searchParams.destination
+      }" date="${searchParams.date.toISOString()}" airline="${airlineName}" />`;
+    } else if (airlineName) {
+      return `I'd be happy to show you ${airlineName.charAt(0).toUpperCase() + airlineName.slice(1)} flights. Could you please tell me which route you're interested in?`;
+    } else {
+      return "I didn't recognize that airline. Could you try one of these: IndiGo, Air India, Vistara, SpiceJet, GoAir, or AirAsia?";
     }
   }
 
   // --- Handle Specific Topics (Airline Info, Tips, etc.) ---
   // Using Gemini first for these is often better for natural language
   console.log("Attempting Gemini response for general query/topic.");
+  
   const geminiGeneralResponse = await getGeminiResponse(
     userMessage,
     currentContext
@@ -784,25 +962,51 @@ export const getInitialMessages = (): Message[] => {
 export const parseFlightSearchCommand = (
   message: string
 ): FlightSearchParams | null => {
-  // Regex needs to match the tags generated in generateChatbotResponse
+  console.log("Parsing flight search command from:", message);
+  
+  // Updated to optionally capture filter, airline, and sort parameters with better regex pattern
   const searchMatch = message.match(
-    /<flight-search\s+source="([^\"]+)"\s+destination="([^\"]+)"\s+date="([^\"]+)"\s*\/?>/
-  ); // Allow optional closing slash
+    /<flight-search\s+source="([^\"]+)"\s+destination="([^\"]+)"\s+date="([^\"]+)"(?:\s+filter="([^\"]+)")?(?:\s+airline="([^\"]+)")?(?:\s+sort="([^\"]+)")?\s*\/?>/
+  );
   
   if (searchMatch) {
-    const [_, source, destination, dateStr] = searchMatch;
-    // Attempt to parse the ISO date string
-    const date = new Date(dateStr);
+    console.log("Flight search match found with groups:", searchMatch.length);
+    const [fullMatch, source, destination, dateStr, filter, airline, sort] = searchMatch;
+    console.log(`Extracted: source=${source}, dest=${destination}, date=${dateStr}, filter=${filter || 'none'}, airline=${airline || 'none'}, sort=${sort || 'price'}`);
     
-    if (isNaN(date.getTime())) {
-      console.error(`Failed to parse date from flight-search tag: ${dateStr}`);
-      return null; // Invalid date
+    // Attempt to parse the ISO date string
+    let date: Date;
+    try {
+      date = new Date(dateStr);
+      
+      if (isNaN(date.getTime())) {
+        console.error(`Failed to parse date from flight-search tag: ${dateStr}`);
+        return null; // Invalid date
+      }
+    } catch (error) {
+      console.error(`Error parsing date from flight-search tag: ${dateStr}`, error);
+      return null;
     }
 
     console.log(
-      `Parsed flight search command: ${source} -> ${destination} on ${date.toISOString()}`
+      `Parsed flight search command: ${source} -> ${destination} on ${date.toISOString()}${filter ? ', filter: ' + filter : ''}${airline ? ', airline: ' + airline : ''}${sort ? ', sort: ' + sort : ''}`
     );
-    return { source, destination, date };
+    
+    // Return with optional filter, airline, and sort parameters
+    const result: FlightSearchParams = { 
+      source, 
+      destination, 
+      date,
+    };
+    
+    // Only add optional parameters if they're defined
+    if (filter) result.filter = filter;
+    if (airline) result.airline = airline;
+    if (sort) result.sort = sort;
+    
+    return result;
+  } else {
+    console.log("No flight search command found in message");
   }
   
   return null;

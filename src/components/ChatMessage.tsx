@@ -31,16 +31,25 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFlightSearch }) =>
     const searchCommand = parseFlightSearchCommand(message.content);
     if (searchCommand) {
       console.log(`Processing flight search command for message ${message.id}:`, searchCommand);
+      
+      // Log specific parameters if they exist
+      if (searchCommand.filter) {
+        console.log(`Applying filter: ${searchCommand.filter}`);
+      }
+      if (searchCommand.airline) {
+        console.log(`Filtering by airline: ${searchCommand.airline}`);
+      }
+      
       searchProcessed.current = true;
       
       // Trigger flight search after a slight delay to avoid React rendering issues
       setTimeout(() => {
         onFlightSearch(searchCommand);
-      }, 50);
+      }, 100); // Slightly longer delay to ensure proper handling
     }
     
     // This effect should only run once per message
-  }, [message.id, isUser, onFlightSearch]);
+  }, [message.id, isUser, onFlightSearch, message.content]);
   
   // Process bot message content for special formatting
   const renderContent = () => {

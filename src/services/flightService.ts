@@ -21,6 +21,9 @@ export interface FlightSearchParams {
   source: string;
   destination: string;
   date: Date;
+  filter?: string;    // For non-stop filtering
+  airline?: string;   // For airline filtering
+  sort?: string;      // For sorting by price or duration
 }
 
 export interface FlightDeal {
@@ -151,7 +154,7 @@ export const searchFlights = async (
   console.log(
     `Searching flights from ${params.source} to ${
       params.destination
-    } on ${params.date.toLocaleDateString()}`
+    } on ${params.date.toLocaleDateString()}${params.filter ? ', filter: ' + params.filter : ''}${params.airline ? ', airline: ' + params.airline : ''}${params.sort ? ', sort: ' + params.sort : ''}`
   );
 
   try {
@@ -173,19 +176,65 @@ export const searchFlights = async (
       });
 
       // Convert response to our Flight format
-      const flights = convertAviationstackFlights(
+      let flights = convertAviationstackFlights(
         response,
         params.source,
         params.destination
       );
-      console.log(`Found ${flights.length} flights from Aviationstack API`);
+      
+      // Apply filters
+      if (params.filter === "non-stop") {
+        flights = flights.filter(flight => flight.non_stop === true);
+      }
+      
+      if (params.airline) {
+        const airlineSearch = params.airline.toLowerCase();
+        flights = flights.filter(flight => 
+          flight.airline.toLowerCase().includes(airlineSearch)
+        );
+      }
+      
+      // Apply sorting
+      if (params.sort === "duration") {
+        console.log("Sorting flights by duration");
+        flights = sortFlightsByDuration(flights);
+      } else {
+        // Default to sorting by price
+        console.log("Sorting flights by price");
+        flights = flights.sort((a, b) => a.price - b.price);
+      }
+      
+      console.log(`Found ${flights.length} flights from Aviationstack API after filtering and sorting`);
       return flights;
     } else {
       console.log("Using mock flight data");
       // Generate mock flights
-      const flights = generateMockFlights(params);
+      let flights = generateMockFlights(params);
+      
+      // Apply filters
+      if (params.filter === "non-stop") {
+        flights = flights.filter(flight => flight.non_stop === true);
+      }
+      
+      if (params.airline) {
+        const airlineSearch = params.airline.toLowerCase();
+        flights = flights.filter(flight => 
+          flight.airline.toLowerCase().includes(airlineSearch)
+        );
+      }
+      
+      // Apply sorting
+      if (params.sort === "duration") {
+        console.log("Sorting flights by duration");
+        flights = sortFlightsByDuration(flights);
+      } else {
+        // Default to sorting by price
+        console.log("Sorting flights by price");
+        flights = flights.sort((a, b) => a.price - b.price);
+      }
+      
       console.log(
-        `Found ${flights.length} flights for ${params.source} to ${params.destination}`
+        `Found ${flights.length} flights for ${params.source} to ${params.destination} after filtering and sorting`
       );
       return flights;
     }
@@ -194,6 +243,26 @@ export const searchFlights = async (
     // Return empty array instead of throwing to prevent UI errors
     return [];
   }
+};
+
+// Helper function to sort flights by duration
+const sortFlightsByDuration = (flights: Flight[]): Flight[] => {
+  return [...flights].sort((a, b) => {
+    // Calculate duration for flight A
+    const depTimeA = new Date(a.departure_time);
+    const arrTimeA = new Date(a.arrival_time);
+    const durationA = a.duration_minutes || 
+      Math.floor((arrTimeA.getTime() - depTimeA.getTime()) / (1000 * 60));
+    
+    // Calculate duration for flight B
+    const depTimeB = new Date(b.departure_time);
+    const arrTimeB = new Date(b.arrival_time);
+    const durationB = b.duration_minutes || 
+      Math.floor((arrTimeB.getTime() - depTimeB.getTime()) / (1000 * 60));
+    
+    // Sort by duration (shortest first)
+    return durationA - durationB;
+  });
 };
 
 // Simulated function to get flight deals
