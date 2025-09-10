@@ -30,21 +30,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
-      setState({ session, loading: false, error: error?.message || null });
-      setUser(session?.user || null);
+      if (mounted) {
+        setState({ session, loading: false, error: error?.message || null });
+        setUser(session?.user || null);
+      }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setState({ session, loading: false, error: null });
-        setUser(session?.user || null);
+      (event, session) => {
+        if (mounted) {
+          // Only update state if the event is not a sign out or if we have a session
+          if (event !== 'SIGNED_OUT' || session) {
+            setState({ session, loading: false, error: null });
+            setUser(session?.user || null);
+          }
+        }
       }
     );
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);

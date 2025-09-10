@@ -200,7 +200,7 @@ export const searchFlights = async (
         flights = sortFlightsByDuration(flights);
       } else {
         // Default to sorting by price
-        console.log("Sorting flights by price");
+        console.log("Sorting flights by price (default)");
         flights = flights.sort((a, b) => a.price - b.price);
       }
       
@@ -229,7 +229,7 @@ export const searchFlights = async (
         flights = sortFlightsByDuration(flights);
       } else {
         // Default to sorting by price
-        console.log("Sorting flights by price");
+        console.log("Sorting flights by price (default)");
         flights = flights.sort((a, b) => a.price - b.price);
       }
       
