@@ -26,3 +26,30 @@ dist-ssr
 .env
 .env.development
 .env.production
+
+# Ignore sensitive database and configuration files
+*.backup
+*.sql
+*_backup*
+*_cluster*
+*restore*
+*setup*
+*config*
+*credentials*
+*keys*
+*secrets*
+
+# Ignore documentation with sensitive info
+*RESTORE*
+*SETUP*
+*MANUAL*
+*GUIDE*
+*INSTRUCTIONS*
+
+# Ignore Supabase sensitive files
+supabase/.env
+supabase/config.toml
+
+# Ignore configuration files with secrets
+config.ts
+.env.local
